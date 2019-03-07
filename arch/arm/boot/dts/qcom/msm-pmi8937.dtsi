@@ -451,6 +451,7 @@
 			qcom,pmic-revid = <&pmi8937_revid>;
 
 			pmi8937_flash0: qcom,flash_0 {
+                                status = "disabled";
 				label = "flash";
 				qcom,led-name = "led:flash_0";
 				qcom,default-led-trigger =
@@ -462,6 +463,7 @@
 			};
 
 			pmi8937_flash1: qcom,flash_1 {
+                                status = "disabled";
 				label = "flash";
 				qcom,led-name = "led:flash_1";
 				qcom,default-led-trigger =
@@ -473,6 +475,7 @@
 			};
 
 			pmi8937_torch0: qcom,torch_0 {
+                                status = "disabled";
 				label = "torch";
 				qcom,led-name = "led:torch_0";
 				qcom,default-led-trigger =
@@ -483,6 +486,7 @@
 			};
 
 			pmi8937_torch1: qcom,torch_1 {
+                                status = "disabled";
 				label = "torch";
 				qcom,led-name = "led:torch_1";
 				qcom,default-led-trigger =
