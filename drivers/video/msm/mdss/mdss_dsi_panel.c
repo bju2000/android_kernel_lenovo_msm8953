@@ -212,7 +212,11 @@ static char led_pwm1[2] = {0x51, 0x0}; /* DTYPE_DCS_WRITE1 */
 #endif
 
 static struct dsi_cmd_desc backlight_cmd = {
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+#else
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(led_pwm1)},
+#endif
 	led_pwm1
 };
 #ifdef CONFIG_MACH_LENOVO_TB8703
@@ -347,10 +351,10 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	}
 	if (gpio_is_valid(ctrl_pdata->bklt_en_gpio)) {
 		rc = gpio_request(ctrl_pdata->bklt_en_gpio,
-			"bklt_enable");
+						"bklt_enable");
 		if (rc) {
 			pr_err("request bklt gpio failed, rc=%d\n",
-				rc);
+				       rc);
 			goto bklt_en_gpio_err;
 		}
 	}
@@ -1814,6 +1818,10 @@ static void mdss_panel_parse_te_params(struct device_node *np,
 	rc = of_property_read_u32
 		(np, "qcom,mdss-tear-check-rd-ptr-trigger-intr", &tmp);
 	te->rd_ptr_irq = (!rc ? tmp : timing->yres + 1);
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	te->wr_ptr_irq = 0;
+#endif
+	
 }
 
 
