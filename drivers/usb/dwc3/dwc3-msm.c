@@ -268,7 +268,104 @@ static struct dwc3_msm *the_msm_dwc3;
 
 #define DSTS_CONNECTSPD_SS		0x4
 
+//#ifdef CONFIG_MACH_LENOVO_TBX704
+//static struct dwc3_msm *fusb_dwc3_msm = NULL;
+struct dwc3_msm *fusb_dwc3_msm = NULL;
+extern bool have_fusb302;
+static int current_vbus = 0;
 
+int fusb_init_vbus_regulator(void){
+	int ret = 0;
+	if(!fusb_dwc3_msm){
+		pr_err("[%s]: fusb_dwc3_msm is NULL\n",__func__);
+		ret = -EFAULT;
+		goto err;
+	}
+
+	if (NULL == fusb_dwc3_msm->vbus_reg){
+		fusb_dwc3_msm->vbus_reg = devm_regulator_get_optional(fusb_dwc3_msm->dev,
+					"vbus_dwc3");
+		if (IS_ERR(fusb_dwc3_msm->vbus_reg) &&
+				PTR_ERR(fusb_dwc3_msm->vbus_reg) == -EPROBE_DEFER) {
+			/* regulators may not be ready, so retry again later */
+			fusb_dwc3_msm->vbus_reg = NULL;
+			return -EPROBE_DEFER;
+		}
+	}
+err:
+	return ret;
+
+}
+
+int fusb_enable_vbus(unsigned int on){
+    int ret = -1, retry = 0;
+
+#if 0
+	if(!fusb_dwc3_msm){
+		pr_err("[%s]: fusb_dwc3_msm is NULL\n",__func__);
+		ret = -EFAULT;
+		goto err;
+	}
+#endif
+
+	pr_info("FUSB %s: on=%d\n", __func__, on);
+    do {
+        pr_info("FUSB %s: fusb_init_vbus_regulator(), retry: %d\n", __func__, retry);
+		ret = fusb_init_vbus_regulator();
+
+#if 0
+		if(ret){
+			pr_err("[%s]: fusb_init_vbus_regulator failed \n",__func__);
+			ret = -EFAULT;
+			goto err;
+		}
+#endif
+
+        if (ret < 0) {
+            msleep(1000);
+            retry++;
+        }
+    } while(ret < 0 && retry < 50);
+
+	if(ret){
+		pr_err("[%s]: fusb_init_vbus_regulator failed \n",__func__);
+		ret = -EFAULT;
+		goto err;
+	}
+
+	if(on){
+		if (!IS_ERR_OR_NULL(fusb_dwc3_msm->vbus_reg))
+		{
+			if(current_vbus != 1)
+			{
+				ret = regulator_enable(fusb_dwc3_msm->vbus_reg);
+				current_vbus = 1;
+			}
+		}else{
+			pr_err("[%s] can't get vbus_reg regulator\n",__func__);
+			ret = -EFAULT;
+			goto err;
+		}
+	}else{
+		if (!IS_ERR_OR_NULL(fusb_dwc3_msm->vbus_reg))
+		{
+			if(current_vbus != 0)
+			{
+				ret = regulator_disable(fusb_dwc3_msm->vbus_reg);
+				current_vbus = 0;
+			}
+		}else{
+			pr_err("[%s] can't get vbus_reg regulator\n",__func__);
+			ret = -EFAULT;
+			goto err;
+		}
+	}
+
+err:
+	return ret;
+};
+EXPORT_SYMBOL(fusb_enable_vbus);
+//#endif
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA);
 
@@ -3267,6 +3364,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dwc3_ext_event_notify(mdwc);
 	}
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+		fusb_dwc3_msm = mdwc;
+#endif
 	return 0;
 
 put_dwc3:
@@ -3403,8 +3503,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->hs_phy->flags |= PHY_HOST_MODE;
 		mdwc->ss_phy->flags |= PHY_HOST_MODE;
 		usb_phy_notify_connect(mdwc->hs_phy, USB_SPEED_HIGH);
-		if (!IS_ERR(mdwc->vbus_reg))
-			ret = regulator_enable(mdwc->vbus_reg);
+		#ifdef CONFIG_MACH_LENOVO_TBX704
+			if(!have_fusb302) 
+			#endif
+			{
+				if (!IS_ERR(mdwc->vbus_reg))
+					ret = regulator_enable(mdwc->vbus_reg);
+			}
 		if (ret) {
 			dev_err(mdwc->dev, "unable to enable vbus_reg\n");
 			mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
@@ -3432,8 +3537,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			dev_err(mdwc->dev,
 				"%s: failed to add XHCI pdev ret=%d\n",
 				__func__, ret);
-			if (!IS_ERR(mdwc->vbus_reg))
-				regulator_disable(mdwc->vbus_reg);
+#ifdef CONFIG_MACH_LENOVO_TBX704
+			if(!have_fusb302) 
+#endif
+			{
+				if (!IS_ERR(mdwc->vbus_reg))
+					regulator_disable(mdwc->vbus_reg);
+			}
 			mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
 			mdwc->ss_phy->flags &= ~PHY_HOST_MODE;
 			pm_runtime_put_sync(mdwc->dev);
@@ -3462,8 +3572,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		dev_dbg(mdwc->dev, "%s: turn off host\n", __func__);
 
 		usb_unregister_atomic_notify(&mdwc->usbdev_nb);
-		if (!IS_ERR(mdwc->vbus_reg))
-			ret = regulator_disable(mdwc->vbus_reg);
+#ifdef CONFIG_MACH_LENOVO_TBX704
+			if(!have_fusb302) 
+#endif
+			{
+			if (!IS_ERR(mdwc->vbus_reg))
+				ret = regulator_disable(mdwc->vbus_reg);
+		}
 		if (ret) {
 			dev_err(mdwc->dev, "unable to disable vbus_reg\n");
 			return ret;
@@ -3490,7 +3605,9 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->in_host_mode = false;
 
 		/* re-init core and OTG registers as block reset clears these */
+#ifndef CONFIG_MACH_LENOVO_TBX704
 		if (!mdwc->host_only_mode)
+#endif
 			dwc3_post_host_reset_core_init(dwc);
 
 		pm_runtime_mark_last_busy(mdwc->dev);
@@ -3546,7 +3663,9 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 	return 0;
 }
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+extern int is_pd_5v_insertion;
+#endif
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 {
 	enum power_supply_type power_supply_type;
@@ -3579,7 +3698,16 @@ static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 skip_psy_type:
 
 	if (mdwc->chg_type == DWC3_CDP_CHARGER)
+#ifdef CONFIG_MACH_LENOVO_TBX704
+				mA = 900;
+	if (mdwc->chg_type == DWC3_SDP_CHARGER)
+				mA = 1000;
+	if (is_pd_5v_insertion == 1)
+		mA = 2000;
+#else
 		mA = DWC3_IDEV_CHG_MAX;
+#endif
+
 
 	/* Save bc1.2 max_curr if type-c charger later moves to diff mode */
 	mdwc->bc1p2_current_max = mA;
@@ -3763,8 +3891,12 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				pm_runtime_get_noresume(mdwc->dev);
 				dwc3_initialize(mdwc);
 				/* check dp/dm for SDP & runtime_put if !SDP */
-				if (mdwc->detect_dpdm_floating &&
-					mdwc->chg_type == DWC3_SDP_CHARGER) {
+#ifdef CONFIG_MACH_LENOVO_TBX704
+				if (mdwc->detect_dpdm_floating) {
+#else
+				if (mdwc->detect_dpdm_floating && mdwc->chg_type == DWC3_SDP_CHARGER) 
+#endif
+				{
 					dwc3_check_float_lines(mdwc);
 					if (mdwc->chg_type != DWC3_SDP_CHARGER)
 						break;
