@@ -1200,6 +1200,9 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 	struct mdss_panel_info *pinfo;
 	struct dsi_panel_cmds *cmds;
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	u32 vsync_period = 0;
+#endif
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1221,7 +1224,16 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 		mdss_dsi_panel_cmds_send(ctrl, cmds, CMD_REQ_COMMIT);
 	}
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if (pinfo->is_dba_panel && pinfo->is_pluggable) {
+		/* ensure at least 1 frame transfers to down stream device */
+		vsync_period = (MSEC_PER_SEC / pinfo->mipi.frame_rate) + 1;
+		msleep(vsync_period);
+		mdss_dba_utils_hdcp_enable(pinfo->dba_data, true);
+	}
+#else
 	mdss_dsi_post_panel_on_hdmi(pinfo);
+#endif
 
 end:
 	pr_debug("%s:-\n", __func__);
@@ -1275,7 +1287,14 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds, CMD_REQ_COMMIT);
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if (ctrl->ds_registered && pinfo->is_pluggable) {
+		mdss_dba_utils_video_off(pinfo->dba_data);
+		mdss_dba_utils_hdcp_enable(pinfo->dba_data, false);
+	}
+#else
 	mdss_dsi_panel_off_hdmi(ctrl, pinfo);
+#endif
 
 end:
 	/* clear idle state */
@@ -3273,8 +3292,35 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_dfps_config(np, ctrl_pdata);
 
+
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	pinfo->is_dba_panel = of_property_read_bool(np,
+			"qcom,dba-panel");
+
+	if (pinfo->is_dba_panel) {
+		bridge_chip_name = of_get_property(np,
+			"qcom,bridge-name", &len);
+		if (!bridge_chip_name || len <= 0) {
+			pr_err("%s:%d Unable to read qcom,bridge_name, data=%pK,len=%d\n",
+				__func__, __LINE__, bridge_chip_name, len);
+			rc = -EINVAL;
+			goto error;
+		}
+		strlcpy(ctrl_pdata->bridge_name, bridge_chip_name,
+			MSM_DBA_CHIP_NAME_MAX_LEN);
+	}
+
+	return 0;
+
+error:
+	return -EINVAL;
+}
+
+#else
 	rc = mdss_panel_parse_dt_hdmi(np, ctrl_pdata);
 	if (rc)
+#endif
+
 		goto error;
 #ifdef CONFIG_MACH_LENOVO_KUNTAO
 	if (mdss_panel_parse_param_prop(np, pinfo, ctrl_pdata))
