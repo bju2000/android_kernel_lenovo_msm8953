@@ -3767,6 +3767,9 @@ static int cpr3_regulator_aging_adjust(struct cpr3_controller *ctrl)
 	}
 
 	/* Perform aging measurement on all aging sensors */
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	max_aging_volt = 0;
+#endif
 	for (i = 0; i < ctrl->aging_sensor_count; i++) {
 		for (j = 0; j < CPR3_AGING_RETRY_COUNT; j++) {
 			rc = cpr3_regulator_measure_aging(ctrl,

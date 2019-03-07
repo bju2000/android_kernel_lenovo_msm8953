@@ -39,6 +39,19 @@
 #include <linux/msm_bcl.h>
 #include <linux/ktime.h>
 #include "pmic-voter.h"
+#ifdef CONFIG_MACH_LENOVO_TBX704
+#include "couloMeter.h"  //stone add
+
+///* stone add for debug start *///
+//#define DEBUG
+#define  COULOMETER_QPNP_SMBCHARGER_DEBUG
+#ifdef      COULOMETER_QPNP_SMBCHARGER_DEBUG
+#define LOG_INF pr_err
+#else
+#define LOG_INF pr_debug
+#endif
+///* stone add for debug end *///
+#endif
 
 #ifdef CONFIG_USB_FUSB302
 extern bool have_fusb302;
@@ -950,13 +963,13 @@ static void read_usb_type(struct smbchg_chip *chip, char **usb_type_name,
 		*usb_supply_type = POWER_SUPPLY_TYPE_UNKNOWN;
 		return;
 	}
-	#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 	if (is_pd_5v_insertion == 2)
 	{
 		*usb_type_name = "SDP";
 		*usb_supply_type = POWER_SUPPLY_TYPE_USB;
 	}else
-	#endif
+#endif
 	{
 		type = get_type(reg);
 		*usb_type_name = get_usb_type_name(type);
@@ -1794,9 +1807,9 @@ static void smbchg_usb_update_online_work(struct work_struct *work)
 	bool user_enabled = !get_client_vote(chip->usb_suspend_votable,
 						USER_EN_VOTER);
 	int online;
-	#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 	union power_supply_propval typec_orientation;
-	#endif
+#endif
 
 	online = user_enabled && chip->usb_present && !chip->very_weak_charger;
 
@@ -1806,7 +1819,7 @@ static void smbchg_usb_update_online_work(struct work_struct *work)
 		power_supply_set_online(chip->usb_psy, online);
 		chip->usb_online = online;
 	}
-	#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 	if((chip->usb_online)&&(have_fusb302)) //&&(is_pd_5v_insertion) )
 	{
 		typec_orientation.intval = typeC_orientation;
@@ -1829,7 +1842,7 @@ static void smbchg_usb_update_online_work(struct work_struct *work)
 			power_supply_set_usb_otg(chip->usb_psy,0);
 		}
 	}
-	#endif
+#endif
 	mutex_unlock(&chip->usb_set_online_lock);
 }
 
@@ -1950,7 +1963,9 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 
 		/* handle special SDP case when USB reports high current */
 		if (current_ma > CURRENT_900_MA) {
+#ifndef CONFIG_MACH_LENOVO_TBX704
 			if (chip->cfg_override_usb_current) {
+#endif
 				/*
 				 * allow setting the current value as reported
 				 * by USB driver.
@@ -1968,10 +1983,12 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 				if (rc < 0)
 					pr_err("Couldn't set ICL override rc = %d\n",
 							rc);
+#ifndef CONFIG_MACH_LENOVO_TBX704
 			} else {
 				/* default to 500mA */
 				current_ma = CURRENT_500_MA;
 			}
+#endif
 			pr_smb(PR_STATUS,
 				"override_usb_current=%d current_ma set to %d\n",
 				chip->cfg_override_usb_current, current_ma);
@@ -3963,9 +3980,11 @@ static void check_battery_type(struct smbchg_chip *chip)
 	}
 }
 
+#ifndef CONFIG_MACH_LENOVO_TBX704
 static int rerun_apsd(struct smbchg_chip *chip);
 void update_usb_status(struct smbchg_chip *chip, bool usb_present, bool force);
 #define HVDCP_NOTIFY_MS		2500
+#endif
 
 static void smbchg_external_power_changed(struct power_supply *psy)
 {
@@ -5933,9 +5952,9 @@ static int smbchg_prepare_for_pulsing_lite(struct smbchg_chip *chip)
 	 */
 	if (!is_src_detect_high(chip)) {
 		pr_smb(PR_MISC, "src det low after 500mS sleep\n");
-		#ifndef CONFIG_MACH_LENOVO_TBX704
+#ifndef CONFIG_MACH_LENOVO_TBX704
 		goto out;
-		#endif
+#endif
 	}
 
 	pr_smb(PR_MISC, "Disable AICL\n");
@@ -5994,7 +6013,7 @@ static int smbchg_unprepare_for_pulsing_lite(struct smbchg_chip *chip)
 		pr_err("Failed to force 9V HVDCP=%d\n",	rc);
 		return rc;
 	}
-	#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 	chip->last_hvdcp9v =ktime_get_boottime();
 #endif
 	pr_smb(PR_MISC, "Retracting HVDCP vote for ICL\n");
@@ -7423,10 +7442,10 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 	pr_smb(PR_STATUS, "Charger Revision DIG: %d.%d; ANA: %d.%d\n",
 			chip->revision[DIG_MAJOR], chip->revision[DIG_MINOR],
 			chip->revision[ANA_MAJOR], chip->revision[ANA_MINOR]);
-			#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 	//Disbale ESR
 	smbchg_sec_masked_write(chip,chip->misc_base + 0xF6,BIT(7),BIT(7));
-	#endif
+#endif
 	/* Setup 9V HVDCP */
 	if (chip->hvdcp_not_supported) {
 		rc = vote(chip->hvdcp_enable_votable, HVDCP_PMIC_VOTER,
@@ -7803,6 +7822,13 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 		if (rc < 0)
 			dev_err(chip->dev, "Couldn't set OTG OC config rc = %d\n",
 				rc);
+		#ifdef CONFIG_USB_FUSB302
+		if(have_fusb302)
+		{
+		 	rc = smbchg_sec_masked_write(chip, chip->otg_base + OTG_CFG,
+            			OTG_EN_CTRL_MASK, OTG_CMD_CTRL_RID_EN);
+		}
+		#endif
 	}
 
 	if (chip->otg_pinctrl) {
