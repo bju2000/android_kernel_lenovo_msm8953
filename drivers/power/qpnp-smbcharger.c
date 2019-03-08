@@ -51,10 +51,10 @@
 #define LOG_INF pr_debug
 #endif
 ///* stone add for debug end *///
+#endif
 
 #ifdef CONFIG_USB_FUSB302
 extern bool have_fusb302;
-#endif
 #endif
 /* Mask/Bit helpers */
 #define _SMB_MASK(BITS, POS) \
@@ -478,6 +478,8 @@ module_param_named(
 );
 
 #ifdef CONFIG_MACH_LENOVO_TBX704
+static int smbchg_default_hvdcp_icl_ma = 2500;
+#else
 static int smbchg_default_hvdcp_icl_ma = 1800;
 #endif
 module_param_named(
@@ -486,6 +488,8 @@ module_param_named(
 );
 
 #ifdef CONFIG_MACH_LENOVO_TBX704
+static int smbchg_default_hvdcp3_icl_ma = 2500;
+#else
 static int smbchg_default_hvdcp3_icl_ma = 3000;
 #endif
 module_param_named(
@@ -494,6 +498,8 @@ module_param_named(
 );
 
 #ifdef CONFIG_MACH_LENOVO_TBX704
+static int smbchg_default_dcp_icl_ma = 2000;
+#else
 static int smbchg_default_dcp_icl_ma = 1800;
 #endif
 module_param_named(
@@ -1946,9 +1952,9 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 
 		/* handle special SDP case when USB reports high current */
 		if (current_ma > CURRENT_900_MA) {
-		#ifndef CONFIG_MACH_LENOVO_TBX704
+#ifndef CONFIG_MACH_LENOVO_TBX704
 			if (chip->cfg_override_usb_current) {
-			#endif
+#endif
 				/*
 				 * allow setting the current value as reported
 				 * by USB driver.
@@ -1966,12 +1972,12 @@ static int smbchg_set_usb_current_max(struct smbchg_chip *chip,
 				if (rc < 0)
 					pr_err("Couldn't set ICL override rc = %d\n",
 							rc);
-							#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifndef CONFIG_MACH_LENOVO_TBX704
 			} else {
 				/* default to 500mA */
 				current_ma = CURRENT_500_MA;
 			}
-			#endif
+#endif
 			pr_smb(PR_STATUS,
 				"override_usb_current=%d current_ma set to %d\n",
 				chip->cfg_override_usb_current, current_ma);
@@ -5804,8 +5810,9 @@ static void smbchg_handle_hvdcp3_disable(struct smbchg_chip *chip)
 				reinit_completion(&chip->hvdcp_det_done);
 				pr_smb(PR_MISC, "init hvdcp_det_done\n");
 			}
-		}
 #endif
+		}
+
 	} else {
 		smbchg_change_usb_supply_type(chip, POWER_SUPPLY_TYPE_UNKNOWN);
 	}
