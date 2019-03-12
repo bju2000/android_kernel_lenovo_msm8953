@@ -1,10 +1,6 @@
 #ifndef __UAPI_LINUX_MSMB_CAMERA_H
 #define __UAPI_LINUX_MSMB_CAMERA_H
 
-#ifdef CONFIG_LENOVO_DIR_CAMERA
-#include <uapi/media/msmb_camera_lenovo.h>
-#else
-
 #include <linux/videodev2.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -52,13 +48,9 @@
 #define MSM_CAMERA_SUBDEV_SENSOR_INIT  14
 #define MSM_CAMERA_SUBDEV_OIS          15
 #define MSM_CAMERA_SUBDEV_FLASH        16
-#ifdef CONFIG_MACH_LENOVO_TB8703
-#define MSM_CAMERA_SUBDEV_EXT          17
-#else
 #define MSM_CAMERA_SUBDEV_IR_LED       17
 #define MSM_CAMERA_SUBDEV_IR_CUT       18
 #define MSM_CAMERA_SUBDEV_EXT          19
-#endif
 
 #define MSM_MAX_CAMERA_SENSORS  5
 
@@ -230,8 +222,6 @@ struct msm_camera_private_ioctl_arg {
 
 #define VIDIOC_MSM_CAMERA_PRIVATE_IOCTL_CMD \
 	_IOWR('V', BASE_VIDIOC_PRIVATE, struct msm_camera_private_ioctl_arg)
-
-#endif
 
 #endif
 

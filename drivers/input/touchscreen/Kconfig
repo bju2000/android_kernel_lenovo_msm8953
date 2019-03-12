@@ -558,39 +558,6 @@ config TOUCHSCREEN_MIGOR
 	  To compile this driver as a module, choose M here: the
 	  module will be called migor_ts.
 
-config TOUCHSCREEN_SYNAPTICS_DSX_I2C
-	tristate "Synaptics DSX I2C touchscreen"
-	depends on I2C
-	help
-	  Say Y here if you have a Synaptics DSX I2C touchscreen
-	  connected to your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called synaptics_dsx_i2c.
-
-config TOUCHSCREEN_SYNAPTICS_DSX_RMI_DEV
-	tristate "Synaptics DSX touchscreen char device"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C
-	help
-	  This enables support for direct register access for Synaptics DSX
-	  touchscreens.
-
-config TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING
-	tristate "Synaptics DSX touchscreen test reporting"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C
-	help
-	  This enables support for test reporting for Synaptics DSX
-	  touchscreens.
-
-config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_MMI
-	tristate "Synaptics DSX touchscreen firmware update (MMI)"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C
-	help
-	  This enables support for firmware update for Synaptics DSX
-	  touchscreens via the MMI design.
-
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
 	select SERIO
@@ -1028,15 +995,16 @@ config TOUCHSCREEN_FT5X06_GESTURE
 
          If unsure, say N.
 
-config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_EXTRA_SYSFS
-	bool "Synaptics DSX firmware update extra sysfs attributes"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
+config TOUCHSCREEN_MSTAR21XX
+	tristate "mstar touchscreens"
+	depends on I2C
 	help
-	  Say Y here to enable support for extra sysfs attributes
-	  supporting firmware update in a development environment.
-	  This does not affect the core or other subsystem attributes.
+	 Say Y here if you have a mstar touchscreen.
 
-	  If unsure, say N.
+	 If unsure, say N.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called msg21xx_ts.
 
 config SECURE_TOUCH
 	bool "Secure Touch"
@@ -1045,16 +1013,6 @@ config SECURE_TOUCH
 	  TOUCHSCREEN_ATMEL_MAXTOUCH_TS)
 	help
 	  Say Y here to enable Secure Touch in supported drivers.
-
-	  If unsure, say N.
-
-config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE_EXTRA_SYSFS
-	bool "Synaptics DSX firmware update extra sysfs attributes"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
-	help
-	  Say Y here to enable support for extra sysfs attributes
-	  supporting firmware update in a development environment.
-	  This does not affect the core or other subsystem attributes.
 
 	  If unsure, say N.
 
@@ -1179,39 +1137,5 @@ config TOUCHSCREEN_MAXIM_STI
 	  module will be called maxim_sti.
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
-source "drivers/input/touchscreen/tpd_property/Kconfig"
-
-config TOUCHSCREEN_HIMAX_HX852XF
-	tristate "Analog Devices AD7879-1/AD7889-1 touchscreen interface"
-	help
-	  Say Y here if you want to support a touchscreen interface using
-	  the AD7879-1/AD7889-1 controller.
-
-	  You should select a bus connection too.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7879.
-config TOUCHSCREEN_HIMAX_I2C
-	tristate "Analog Devices AD7879-1/AD7889-1 touchscreen interface"
-	help
-	  Say Y here if you want to support a touchscreen interface using
-	  the AD7879-1/AD7889-1 controller.
-
-	  You should select a bus connection too.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7879.
-config CONFIG_TOUCHSCREEN_HIMAX_DEBUG
-	tristate "Analog Devices AD7879-1/AD7889-1 touchscreen interface"
-	help
-	  Say Y here if you want to support a touchscreen interface using
-	  the AD7879-1/AD7889-1 controller.
-
-	  You should select a bus connection too.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7879.
-source "drivers/input/touchscreen/hx852xf/Kconfig"
 source "drivers/input/touchscreen/gt910P/Kconfig"
-
 endif

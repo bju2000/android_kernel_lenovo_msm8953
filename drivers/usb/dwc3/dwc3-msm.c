@@ -211,9 +211,6 @@ struct dwc3_msm {
 	enum usb_otg_state	otg_state;
 	enum usb_chg_state	chg_state;
 	int			pmic_id_irq;
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	int 			usb_id_gpio;
-#endif
 	struct work_struct	bus_vote_w;
 	unsigned int		bus_vote;
 	u32			bus_perf_client;
@@ -240,19 +237,12 @@ struct dwc3_msm {
 	struct notifier_block	dwc3_cpu_notifier;
 	struct notifier_block	usbdev_nb;
 	bool			hc_died;
-	bool			host_only_mode;
 
 	int  pwr_event_irq;
 	atomic_t                in_p3;
 	unsigned int		lpm_to_suspend_delay;
 	bool			init;
 };
-
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-static bool host_mode_disable;
-static bool host_id_state;
-static struct dwc3_msm *the_msm_dwc3;
-#endif
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
 #define USB_HSPHY_3P3_VOL_MAX		3300000 /* uV */
@@ -268,7 +258,6 @@ static struct dwc3_msm *the_msm_dwc3;
 
 #define DSTS_CONNECTSPD_SS		0x4
 
-//#ifdef CONFIG_MACH_LENOVO_TBX704
 //static struct dwc3_msm *fusb_dwc3_msm = NULL;
 struct dwc3_msm *fusb_dwc3_msm = NULL;
 extern bool have_fusb302;
@@ -365,7 +354,6 @@ err:
 	return ret;
 };
 EXPORT_SYMBOL(fusb_enable_vbus);
-//#endif
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA);
 
@@ -777,7 +765,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (!dep->endpoint.desc) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue request %pK to disabled ep %s\n",
+			"%s: trying to queue request %p to disabled ep %s\n",
 			__func__, request, ep->name);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EPERM;
@@ -814,7 +802,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 
 	if (dep->number == 0 || dep->number == 1) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue dbm request %pK to control ep %s\n",
+			"%s: trying to queue dbm request %p to control ep %s\n",
 			__func__, request, ep->name);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EPERM;
@@ -823,7 +811,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 	if (dep->busy_slot != dep->free_slot || !list_empty(&dep->request_list)
 					 || !list_empty(&dep->req_queued)) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue dbm request %pK tp ep %s\n",
+			"%s: trying to queue dbm request %p tp ep %s\n",
 			__func__, request, ep->name);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EPERM;
@@ -846,7 +834,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 	list_add_tail(&req_complete->list_item, &mdwc->req_complete_list);
 	request->complete = dwc3_msm_req_complete_func;
 
-	dev_vdbg(dwc->dev, "%s: queing request %pK to ep %s length %d\n",
+	dev_vdbg(dwc->dev, "%s: queing request %p to ep %s length %d\n",
 			__func__, request, ep->name, request->length);
 	size = dwc3_msm_read_reg(mdwc->base, DWC3_GEVNTSIZ(0));
 	dbm_event_buffer_config(mdwc->dbm,
@@ -1032,7 +1020,7 @@ static void gsi_ring_in_db(struct usb_ep *ep, struct usb_gsi_request *request)
 		dev_dbg(mdwc->dev, "Failed to get GSI DBL address MSB\n");
 
 	offset = dwc3_trb_dma_offset(dep, &dep->trb_pool[num_trbs-1]);
-	dev_dbg(mdwc->dev, "Writing link TRB addr: %pKa to %pK (%x)\n",
+	dev_dbg(mdwc->dev, "Writing link TRB addr: %pa to %p (%x)\n",
 	&offset, gsi_dbl_address_lsb, dbl_lo_addr);
 
 	writel_relaxed(offset, gsi_dbl_address_lsb);
@@ -2018,9 +2006,6 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc)
 
 	if (!(reg & PWR_EVNT_LPM_IN_L2_MASK)) {
 		dev_err(mdwc->dev, "could not transition HS PHY to L2\n");
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	}
-#endif
 		dbg_event(0xFF, "PWR_EVNT_LPM",
 			dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG));
 		dbg_event(0xFF, "QUSB_STS",
@@ -2032,9 +2017,7 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc)
 					&mdwc->resume_work, 0);
 			return -EBUSY;
 		}
-#ifndef CONFIG_MACH_LENOVO_KUNTAO
 	}
-#endif
 
 	/* Clear L2 event bit */
 	dwc3_msm_write_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG,
@@ -2199,12 +2182,10 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc)
 				|| mdwc->in_host_mode) {
 		enable_irq_wake(mdwc->hs_phy_irq);
 		enable_irq(mdwc->hs_phy_irq);
-#ifndef CONFIG_MACH_LENOVO_KUNTAO
 		if (mdwc->ss_phy_irq) {
 			enable_irq_wake(mdwc->ss_phy_irq);
 			enable_irq(mdwc->ss_phy_irq);
 		}
-#endif
 		mdwc->lpm_flags |= MDWC3_ASYNC_IRQ_WAKE_CAPABILITY;
 	}
 
@@ -2689,9 +2670,6 @@ dwc3_msm_property_is_writeable(struct power_supply *psy,
 static char *dwc3_msm_pm_power_supplied_to[] = {
 	"battery",
 	"bms",
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	"ext-charger",
-#endif
 };
 
 static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {
@@ -2705,122 +2683,6 @@ static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {
 	POWER_SUPPLY_PROP_USB_OTG,
 };
 
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-static int msm_otg_enable_gpio_pull(struct dwc3_msm *dwc3, int enable)
-{
-	int err = 0;
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *gpio_state;
-
-	if (!dwc3 || !dwc3->usb_id_gpio)
-		return 0;
-
-	pinctrl = devm_pinctrl_get(dwc3->dev);
-	if (IS_ERR_OR_NULL(pinctrl)) {
-		pr_err("%s: Getting pinctrl handle failed \r\n", __func__);
-		return -EINVAL;
-	}
-
-	if (enable)
-		gpio_state = pinctrl_lookup_state(pinctrl, "usbid_default");
-	else
-		gpio_state = pinctrl_lookup_state(pinctrl, "usbid_deactive");
-
-	if (pinctrl && gpio_state) {
-		err = pinctrl_select_state(pinctrl, gpio_state);
-		if (err) {
-			pr_err("%s: pinctrl usb id state, err = %d\r\n",
-					__func__, err);
-			return -EINVAL;
-		}
-	}
-	return 1;
-}
-
-static int msm_otg_enable_ext_id(struct dwc3_msm *dwc3, int enable)
-{
-	int res;
-	int irq;
-
-	if (!dwc3->usb_id_gpio)
-		return -ENODEV;
-
-	/* usb_id_gpio to irq */
-	irq = gpio_to_irq(dwc3->usb_id_gpio);
-
-	if (enable) {
-		res = msm_otg_enable_gpio_pull(dwc3, 1);
-		msleep(100);
-		enable_irq(irq);
-	} else {
-		disable_irq(irq);
-		msleep(50);
-		res = msm_otg_enable_gpio_pull(dwc3, 0);
-	}
-	return res;
-}
-
-static int set_host_mode_disable(const char *val, const struct kernel_param *kp)
-{
-	int res;
-	int rv = param_set_bool(val, kp);
-	struct dwc3_msm *dwc3 = the_msm_dwc3;
-
-	if (!dwc3 || !dwc3->usb_id_gpio)
-		return 0;
-
-	if (host_mode_disable)
-		res = msm_otg_enable_ext_id(dwc3, 0);
-	else
-		res = msm_otg_enable_ext_id(dwc3, 1);
-
-	if (res)
-		pr_err("%s: host_mode_disable:%d fail \n", __func__,
-				host_mode_disable);
-
-	return rv;
-}
-
-static struct kernel_param_ops host_mode_disable_param_ops = {
-	.set = set_host_mode_disable,
-	.get = param_get_bool,
-};
-
-module_param_cb(host_mode_disable, &host_mode_disable_param_ops,
-		&host_mode_disable, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(host_mode_disable, "Whether to disable Host Mode");
-
-static int get_host_id_state(char *val, const struct kernel_param *kp)
-{
-	struct dwc3_msm *dwc3 = the_msm_dwc3;
-	enum dwc3_id_state id;
-
-	if (!dwc3 || !dwc3->usb_id_gpio)
-		return 0;
-
-	if (gpio_is_valid(dwc3->usb_id_gpio)) {
-		id = gpio_get_value(dwc3->usb_id_gpio);
-	}
-
-	if (id == DWC3_ID_FLOAT) {
-		host_id_state = true;
-	} else {
-		host_id_state = false;
-	}
-
-	return param_get_int(val, kp);
-}
-
-static struct kernel_param_ops host_id_state_param_ops = {
-	.set = param_set_int,
-	.get = get_host_id_state,
-};
-
-module_param_cb(host_id_state, &host_id_state_param_ops,
-		&host_id_state, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(host_id_state, "Get the USB ID pin state");
-#endif
-
 static irqreturn_t dwc3_pmic_id_irq(int irq, void *data)
 {
 	struct dwc3_msm *mdwc = data;
@@ -2828,10 +2690,6 @@ static irqreturn_t dwc3_pmic_id_irq(int irq, void *data)
 
 	/* If we can't read ID line state for some reason, treat it as float */
 	id = !!irq_read_line(irq);
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	if (gpio_is_valid(mdwc->usb_id_gpio))
-		id = gpio_get_value(mdwc->usb_id_gpio);
-#endif
 	if (mdwc->id_state != id) {
 		mdwc->id_state = id;
 		schedule_work(&mdwc->resume_work.work);
@@ -2962,24 +2820,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	int ext_hub_reset_gpio;
 	u32 val;
 
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	msleep(600);
-#endif
-
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
 	if (!mdwc)
 		return -ENOMEM;
-
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	if (of_get_property(pdev->dev.of_node, "qcom,usb-dbm", NULL)) {
-		mdwc->dbm = usb_get_dbm_by_phandle(&pdev->dev, "qcom,usb-dbm");
-		if (IS_ERR(mdwc->dbm)) {
-			dev_err(&pdev->dev, "unable to get dbm device\n");
-			ret = -EPROBE_DEFER;
-			goto err_dbm;
-		}
-	}
-#endif
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
 		dev_err(&pdev->dev, "setting DMA mask to 64 failed.\n");
@@ -3023,15 +2866,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "setting lpm_to_suspend_delay to zero.\n");
 		mdwc->lpm_to_suspend_delay = 0;
 	}
-
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	mdwc->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
-	if (mdwc->usb_id_gpio < 0)
-		pr_err("usb_id_gpio is not available\n");
-
-	the_msm_dwc3 = mdwc;
-	msm_otg_enable_gpio_pull(mdwc, 1);
-#endif
 
 	/*
 	 * DWC3 has separate IRQ line for OTG events (ID/BSV) and for
@@ -3099,19 +2933,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	if (gpio_is_valid(mdwc->usb_id_gpio)) {
-		/* usb_id_gpio request */
-		ret = gpio_request(mdwc->usb_id_gpio, "USB_ID_GPIO");
-		if (ret < 0) {
-			dev_err(&pdev->dev, "gpio req failed for id\n");
-			mdwc->usb_id_gpio = 0;
-			goto err;
-		}
-		/* usb_id_gpio to irq */
-		mdwc->pmic_id_irq = gpio_to_irq(mdwc->usb_id_gpio);
-	} else
-#endif
 	mdwc->pmic_id_irq = platform_get_irq_byname(pdev, "pmic_id_irq");
 	if (mdwc->pmic_id_irq > 0) {
 		irq_set_status_flags(mdwc->pmic_id_irq, IRQ_NOAUTOEN);
@@ -3195,9 +3016,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-	if (mdwc->dbm) {
-#else
 	if (of_get_property(pdev->dev.of_node, "qcom,usb-dbm", NULL)) {
 		mdwc->dbm = usb_get_dbm_by_phandle(&pdev->dev, "qcom,usb-dbm");
 		if (IS_ERR(mdwc->dbm)) {
@@ -3205,7 +3023,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto err;
 		}
-#endif
 		/*
 		 * Add power event if the dbm indicates coming out of L1
 		 * by interrupt
@@ -3347,10 +3164,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		enable_irq(mdwc->pmic_id_irq);
 		local_irq_save(flags);
 		mdwc->id_state = !!irq_read_line(mdwc->pmic_id_irq);
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-		if (gpio_is_valid(mdwc->usb_id_gpio))
-			mdwc->id_state = gpio_get_value(mdwc->usb_id_gpio);
-#endif
 		if (mdwc->id_state == DWC3_ID_GROUND)
 			dwc3_ext_event_notify(mdwc);
 		local_irq_restore(flags);
@@ -3359,14 +3172,14 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 
 	if (!dwc->is_drd && host_mode) {
 		dev_dbg(&pdev->dev, "DWC3 in host only mode\n");
-		mdwc->host_only_mode = true;
 		mdwc->id_state = DWC3_ID_GROUND;
 		dwc3_ext_event_notify(mdwc);
 	}
 
-#ifdef CONFIG_MACH_LENOVO_TBX704
+	//if(have_fusb302)
+	{
 		fusb_dwc3_msm = mdwc;
-#endif
+	}
 	return 0;
 
 put_dwc3:
@@ -3378,11 +3191,6 @@ put_psupply:
 		power_supply_unregister(&mdwc->usb_psy);
 err:
 	return ret;
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
-err_dbm:
-	devm_kfree(&pdev->dev, mdwc);
-	return ret;
-#endif
 }
 
 static int dwc3_msm_remove_children(struct device *dev, void *data)
@@ -3503,10 +3311,11 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->hs_phy->flags |= PHY_HOST_MODE;
 		mdwc->ss_phy->flags |= PHY_HOST_MODE;
 		usb_phy_notify_connect(mdwc->hs_phy, USB_SPEED_HIGH);
-		#ifdef CONFIG_MACH_LENOVO_TBX704
-			if(!have_fusb302) 
-			#endif
+			if(have_fusb302)
 			{
+				//do nothing
+			}
+			else{
 				if (!IS_ERR(mdwc->vbus_reg))
 					ret = regulator_enable(mdwc->vbus_reg);
 			}
@@ -3537,10 +3346,10 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			dev_err(mdwc->dev,
 				"%s: failed to add XHCI pdev ret=%d\n",
 				__func__, ret);
-#ifdef CONFIG_MACH_LENOVO_TBX704
-			if(!have_fusb302) 
-#endif
+			if(have_fusb302)
 			{
+				// do nothing at all
+			}else{
 				if (!IS_ERR(mdwc->vbus_reg))
 					regulator_disable(mdwc->vbus_reg);
 			}
@@ -3572,10 +3381,9 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		dev_dbg(mdwc->dev, "%s: turn off host\n", __func__);
 
 		usb_unregister_atomic_notify(&mdwc->usbdev_nb);
-#ifdef CONFIG_MACH_LENOVO_TBX704
-			if(!have_fusb302) 
-#endif
-			{
+		if(have_fusb302){
+			// do nothing at all
+		}else{
 			if (!IS_ERR(mdwc->vbus_reg))
 				ret = regulator_disable(mdwc->vbus_reg);
 		}
@@ -3605,11 +3413,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->in_host_mode = false;
 
 		/* re-init core and OTG registers as block reset clears these */
-#ifndef CONFIG_MACH_LENOVO_TBX704
-		if (!mdwc->host_only_mode)
-#endif
-			dwc3_post_host_reset_core_init(dwc);
-
+		dwc3_post_host_reset_core_init(dwc);
 		pm_runtime_mark_last_busy(mdwc->dev);
 		pm_runtime_put_sync_autosuspend(mdwc->dev);
 		dbg_event(0xFF, "StopHost psync",
@@ -3663,9 +3467,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 	return 0;
 }
-#ifdef CONFIG_MACH_LENOVO_TBX704
 extern int is_pd_5v_insertion;
-#endif
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 {
 	enum power_supply_type power_supply_type;
@@ -3698,16 +3500,11 @@ static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 skip_psy_type:
 
 	if (mdwc->chg_type == DWC3_CDP_CHARGER)
-#ifdef CONFIG_MACH_LENOVO_TBX704
 				mA = 900;
 	if (mdwc->chg_type == DWC3_SDP_CHARGER)
 				mA = 1000;
 	if (is_pd_5v_insertion == 1)
 		mA = 2000;
-#else
-		mA = DWC3_IDEV_CHG_MAX;
-#endif
-
 
 	/* Save bc1.2 max_curr if type-c charger later moves to diff mode */
 	mdwc->bc1p2_current_max = mA;
@@ -3888,15 +3685,11 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				atomic_set(&dwc->in_lpm, 0);
 				pm_runtime_set_active(mdwc->dev);
 				pm_runtime_enable(mdwc->dev);
-				pm_runtime_get_noresume(mdwc->dev);
+				//removed by wwm for T-HUB stably//if(atomic_read(&mdwc->dev->power.usage_count) == 0)
+					pm_runtime_get_noresume(mdwc->dev);
 				dwc3_initialize(mdwc);
 				/* check dp/dm for SDP & runtime_put if !SDP */
-#ifdef CONFIG_MACH_LENOVO_TBX704
 				if (mdwc->detect_dpdm_floating) {
-#else
-				if (mdwc->detect_dpdm_floating && mdwc->chg_type == DWC3_SDP_CHARGER) 
-#endif
-				{
 					dwc3_check_float_lines(mdwc);
 					if (mdwc->chg_type != DWC3_SDP_CHARGER)
 						break;

@@ -222,13 +222,13 @@ struct flash_led_platform_data {
 };
 
 struct qpnp_flash_led_buffer {
-	struct		mutex debugfs_lock; /* Prevent thread concurrency */
-	size_t		rpos;
-	size_t		wpos;
-	size_t		len;
-	struct		qpnp_flash_led *led;
-	u32		buffer_cnt;
-	char		data[0];
+	struct	mutex debugfs_lock; /* Prevent thread concurrency */
+	size_t	rpos;
+	size_t	wpos;
+	size_t	len;
+	struct	qpnp_flash_led *led;
+	u32	buffer_cnt;
+	char	data[0];
 };
 
 /*
@@ -338,8 +338,8 @@ static ssize_t flash_led_dfs_latched_reg_read(struct file *fp, char __user *buf,
 	size_t ret;
 
 	if (!log) {
-		pr_err("error: file private data is NULL\n");
-		return -EFAULT;
+	pr_err("error: file private data is NULL\n");
+	return -EFAULT;
 	}
 	led = log->led;
 
@@ -398,8 +398,8 @@ static ssize_t flash_led_dfs_fault_reg_read(struct file *fp, char __user *buf,
 	size_t ret;
 
 	if (!log) {
-		pr_err("error: file private data is NULL\n");
-		return -EFAULT;
+	pr_err("error: file private data is NULL\n");
+	return -EFAULT;
 	}
 	led = log->led;
 
@@ -455,8 +455,8 @@ static ssize_t flash_led_dfs_fault_reg_enable(struct file *file,
 	char *kbuf;
 
 	if (!log) {
-		pr_err("error: file private data is NULL\n");
-		return -EFAULT;
+	pr_err("error: file private data is NULL\n");
+	return -EFAULT;
 	}
 	led = log->led;
 
@@ -512,8 +512,8 @@ static ssize_t flash_led_dfs_dbg_enable(struct file *file,
 	char *kbuf;
 
 	if (!log) {
-		pr_err("error: file private data is NULL\n");
-		return -EFAULT;
+	pr_err("error: file private data is NULL\n");
+	return -EFAULT;
 	}
 	led = log->led;
 
@@ -1066,7 +1066,8 @@ static int qpnp_flash_led_module_disable(struct qpnp_flash_led *led,
 							&psy_prop);
 			if (rc) {
 				dev_err(&led->spmi_dev->dev,
-				"Failed to disable OTG pulse skip\n");
+				"Failed to setup OTG pulse skip enable\n");
+				return -EINVAL;
 			}
 		}
 	}
@@ -1474,7 +1475,8 @@ static void qpnp_flash_led_work(struct work_struct *work)
 						&psy_prop);
 			if (rc) {
 				dev_err(&led->spmi_dev->dev,
-					"Failed to enable OTG pulse skip\n");
+					"Failed to setup OTG pulse skip enable\n");
+				goto exit_flash_led_work;
 			}
 		} else {
 			dev_err(&led->spmi_dev->dev,
@@ -1737,7 +1739,7 @@ turn_off:
 			goto exit_flash_led_work;
 		}
 
-		led->open_fault |= (val & FLASH_LED_OPEN_FAULT_DETECTED);
+		led->open_fault = (val & FLASH_LED_OPEN_FAULT_DETECTED);
 	}
 
 	rc = qpnp_led_masked_write(led->spmi_dev,

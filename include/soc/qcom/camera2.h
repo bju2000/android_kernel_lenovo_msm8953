@@ -20,37 +20,6 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 
-#ifdef CONFIG_MACH_LENOVO_TB8703
-#define MAX_SPECIAL_SUPPORT_SIZE 10
-#define CAMERA_VENDOR_EEPROM_COUNT_MAX		6
-
-
-enum __camera_vendor_module_id{
-	MID_NULL = 0,
-	MID_SUNNY,
-	MID_TRULY,
-	MID_A_KERR,
-	MID_LITEARRAY,
-	MID_DARLING,
-	MID_QTECH,
-	MID_OFILM,
-	MID_HUAQUAN,
-	MID_KINGCOM = MID_HUAQUAN,
-	MID_BOOYI,
-	MID_LAIMU,
-	MID_WDSEN,
-	MID_SUNRISE,
-	MID_PRIMAX = 0x17,
-	MID_AVC,
-	MID_MAX
-};
-typedef enum __camera_vendor_module_id camera_vendor_module_id;
-
-struct vendor_eeprom{
-	char eeprom_name[128];
-	uint8_t module_id;
-};
-#endif
 
 enum msm_camera_device_type_t {
 	MSM_CAMERA_I2C_DEVICE,
@@ -76,9 +45,6 @@ struct msm_camera_slave_info {
 	uint16_t sensor_slave_addr;
 	uint16_t sensor_id_reg_addr;
 	uint16_t sensor_id;
-#ifdef CONFIG_LENOVO_DIR_CAMERA
-	uint16_t sensor_id2;
-#endif
 	uint16_t sensor_id_mask;
 };
 
@@ -249,6 +215,8 @@ struct msm_eeprom_cmm_t {
 struct msm_eeprom_board_info {
 	const char *eeprom_name;
 	uint16_t i2c_slaveaddr;
+	uint16_t sensorid_addr;
+	uint16_t sensorid;
 	struct msm_camera_power_ctrl_t power_info;
 	struct msm_eeprom_cmm_t cmm_data;
 	enum i2c_freq_mode_t i2c_freq_mode;

@@ -26,6 +26,15 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 
+/* Added by wangs for increase flash hardware_info (general) begin */
+#include <linux/hqsysfs.h>
+static char tmp_flash_name[100];
+#define MCP_SAMSUNG_MANIFACTURE_ID 0x15
+#define MCP_HYNIX_MANIFACTURE_ID 0x90
+#define MCP_MICRON_MANIFACTURE_ID 0x13
+#define MCP_KINGSTON_MANIFACTURE_ID 0x70
+/* Added by wangs for increase flash hardware_info (general) end */
+
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -1648,6 +1657,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	u32 cid[4];
 	u32 rocr;
 	u8 *ext_csd = NULL;
+	unsigned long MemTotal = 0;
+	int ddr_size = 0;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -1804,6 +1815,43 @@ reinit:
 					mmc_hostname(host), __func__, err);
 			goto free_card;
 		}
+
+        /* Added by wangs to increase emcp hardware info. (general) begin */
+        if(host->index==0)
+        {
+            MemTotal = (totalram_pages) << (PAGE_SHIFT - 10);
+            ddr_size = (MemTotal/1000000) + 1;
+            pr_info("%s: MemTotal = %8lu kB, ddr_size = %d\n", __func__, MemTotal, ddr_size);
+
+            pr_info("%s:manifacture id is 0x%x\n",mmc_hostname(card->host),card->cid.manfid);
+            memset(tmp_flash_name, 0, sizeof(tmp_flash_name));
+            if(MCP_SAMSUNG_MANIFACTURE_ID==card->cid.manfid)
+            {
+                snprintf(tmp_flash_name, 100, "SAMSUNG: %u MB(EMMC) %dGB(DDR)", card->ext_csd.sectors / 2048, ddr_size);
+                hq_regiser_hw_info(HWID_EMMC, (char *)(tmp_flash_name));
+            }
+            else if(MCP_HYNIX_MANIFACTURE_ID==card->cid.manfid)
+            {
+                snprintf(tmp_flash_name, 100, "HYNIX: %u MB(EMMC) %dGB(DDR)", card->ext_csd.sectors / 2048, ddr_size);
+                hq_regiser_hw_info(HWID_EMMC, (char *)(tmp_flash_name));
+            }
+            else if(MCP_MICRON_MANIFACTURE_ID==card->cid.manfid)
+            {
+                snprintf(tmp_flash_name, 100, "MICRON: %u MB(EMMC) %dGB(DDR)", card->ext_csd.sectors / 2048, ddr_size);
+                hq_regiser_hw_info(HWID_EMMC, (char *)(tmp_flash_name));
+            }
+            else if(MCP_KINGSTON_MANIFACTURE_ID==card->cid.manfid)
+            {
+                snprintf(tmp_flash_name, 100, "KINGSTON: %u MB(EMMC) %dGB(DDR)", card->ext_csd.sectors / 2048, ddr_size);
+                hq_regiser_hw_info(HWID_EMMC, (char *)(tmp_flash_name));
+            }
+            else
+            {
+                snprintf(tmp_flash_name, 100,"%s: %u MB(EMMC) %dGB(DDR)" ,card->cid.prod_name, card->ext_csd.sectors / 2048, ddr_size);
+                hq_regiser_hw_info(HWID_EMMC, (char *)(tmp_flash_name));
+            }
+        }
+        /* Added by wangs to increase emcp hardware info. (general) end */
 
 		/* If doing byte addressing, check if required to do sector
 		 * addressing.  Handle the case of <2GB cards needing sector

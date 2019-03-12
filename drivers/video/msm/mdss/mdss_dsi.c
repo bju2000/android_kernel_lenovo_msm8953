@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/msm-bus.h>
 #include <linux/pm_qos.h>
+#include <linux/hqsysfs.h>
 
 #include "mdss.h"
 #include "mdss_panel.h"
@@ -44,14 +45,10 @@ static struct mdss_dsi_data *mdss_dsi_res;
 #define DSI_ENABLE_PC_LATENCY PM_QOS_DEFAULT_VALUE
 
 static struct pm_qos_request mdss_dsi_pm_qos_request;
-#ifdef CONFIG_MACH_LENOVO_TB8703
-extern int mdss_dsi_panel_lcden_gpio_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, int on);
-#endif
-#ifdef CONFIG_MACH_LENOVO_TBX704
+
 /* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
 static int lcd_power_en,lcd_level_shift;
 /* Add-end by Phoenix.Wu for Achillies4 Plus LCD */
-#endif
 
 static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -104,17 +101,6 @@ static void mdss_dsi_pm_qos_update_request(int val)
 
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
-
-static int mdss_dsi_hndl_enable_te(struct mdss_dsi_ctrl_pdata *ctrl,
-				int enable)
-{
-	if (enable)
-		mdss_dsi_set_tear_on(ctrl);
-	else
-		mdss_dsi_set_tear_off(ctrl);
-
-	return 0;
-}
 
 static struct mdss_dsi_ctrl_pdata *mdss_dsi_get_ctrl(u32 ctrl_id)
 {
@@ -320,7 +306,6 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	if (ret)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
-#ifdef CONFIG_MACH_LENOVO_TBX704
 	/* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
 	if (gpio_is_valid(lcd_power_en)){
 		ret = gpio_request(lcd_power_en,"lcd_power_enable");
@@ -348,9 +333,7 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	/* Add-end by Phoenix.Wu for Achillies4 Plus LCD */
 
 	msleep(400);
-	#endif
 end:
-
 	return ret;
 }
 
@@ -363,7 +346,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-	#ifdef CONFIG_MACH_LENOVO_TBX704
 	/* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
 	if (!pdata->panel_info.cont_splash_enabled){
 		if (gpio_is_valid(lcd_power_en)){
@@ -387,7 +369,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		gpio_free(lcd_level_shift);
 		}
 	/* Add-end by Phoenix.Wu for Achillies4 Plus LCD */
-	#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -399,6 +380,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 		return ret;
 	}
+
 
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
@@ -431,9 +413,6 @@ static int mdss_dsi_panel_power_ctrl(struct mdss_panel_data *pdata,
 {
 	int ret;
 	struct mdss_panel_info *pinfo;
-#ifdef CONFIG_MACH_LENOVO_TB8703
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-#endif
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -448,11 +427,6 @@ static int mdss_dsi_panel_power_ctrl(struct mdss_panel_data *pdata,
 		pr_debug("%s: no change needed\n", __func__);
 		return 0;
 	}
-#ifdef CONFIG_MACH_LENOVO_TB8703
-	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-		panel_data);
-	mdss_dsi_panel_lcden_gpio_ctrl(ctrl_pdata, power_state);
-#endif
 
 	/*
 	 * If a dynamic mode switch is pending, the regulators should not
@@ -741,7 +715,7 @@ static ssize_t mdss_dsi_cmd_state_read(struct file *file, char __user *buf,
 	if (blen < 0)
 		return 0;
 
-	if (copy_to_user(buf, buffer, min(count, (size_t)blen+1)))
+	if (copy_to_user(buf, buffer, blen))
 		return -EFAULT;
 
 	*ppos += blen;
@@ -753,11 +727,6 @@ static ssize_t mdss_dsi_cmd_state_write(struct file *file,
 {
 	int *link_state = file->private_data;
 	char *input;
-
-	if (!count) {
-		pr_err("%s: Zero bytes to be written\n", __func__);
-		return -EINVAL;
-	}
 
 	input = kmalloc(count, GFP_KERNEL);
 	if (!input) {
@@ -890,15 +859,10 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 
 	/* Writing in batches is possible */
 	ret = simple_write_to_buffer(string_buf, blen, ppos, p, count);
-	if (ret < 0) {
-		pr_err("%s: Failed to copy data\n", __func__);
-		mutex_unlock(&pcmds->dbg_mutex);
-		return -EINVAL;
-	}
 
-	string_buf[ret] = '\0';
+	string_buf[blen] = '\0';
 	pcmds->string_buf = string_buf;
-	pcmds->sblen = count;
+	pcmds->sblen = blen;
 	mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
 }
@@ -949,7 +913,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 	while (len >= sizeof(*dchdr)) {
 		dchdr = (struct dsi_ctrl_hdr *)bp;
 		dchdr->dlen = ntohs(dchdr->dlen);
-		if (dchdr->dlen > len || dchdr->dlen < 0) {
+		if (dchdr->dlen > len) {
 			pr_err("%s: dtsi cmd=%x error, len=%d\n",
 				__func__, dchdr->dtype, dchdr->dlen);
 			kfree(buf);
@@ -1757,18 +1721,6 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	return 0;
 }
 
-static irqreturn_t test_hw_vsync_handler(int irq, void *data)
-{
-	struct mdss_panel_data *pdata = (struct mdss_panel_data *)data;
-
-	pr_debug("HW VSYNC\n");
-	MDSS_XLOG(0xaaa, irq);
-	complete_all(&pdata->te_done);
-	if (pdata->next)
-		complete_all(&pdata->next->te_done);
-	return IRQ_HANDLED;
-}
-
 int mdss_dsi_cont_splash_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -2038,7 +1990,7 @@ static int __mdss_dsi_dfps_update_clks(struct mdss_panel_data *pdata,
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_dsi_ctrl_pdata *sctrl_pdata = NULL;
-	struct mdss_panel_info *pinfo, *spinfo = NULL;
+	struct mdss_panel_info *pinfo, *spinfo;
 	int rc = 0;
 
 	if (pdata == NULL) {
@@ -2187,7 +2139,7 @@ static int __mdss_dsi_dfps_update_clks(struct mdss_panel_data *pdata,
 
 	/* update new fps that at this point is already updated in hw */
 	pinfo->current_fps = new_fps;
-	if (spinfo) {
+	if (sctrl_pdata) {
 		spinfo->current_fps = new_fps;
 	}
 
@@ -2640,7 +2592,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		break;
 	case MDSS_EVENT_PANEL_OFF:
 		power_state = (int) (unsigned long) arg;
-		disable_esd_thread();
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_blank(pdata, power_state);
@@ -2683,10 +2634,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		break;
 	case MDSS_EVENT_ENABLE_PARTIAL_ROI:
 		rc = mdss_dsi_ctl_partial_roi(pdata);
-		break;
-	case MDSS_EVENT_ENABLE_TE:
-		rc = mdss_dsi_hndl_enable_te(ctrl_pdata,
-				(int) (unsigned long) arg);
 		break;
 	case MDSS_EVENT_DSI_RESET_WRITE_PTR:
 		rc = mdss_dsi_reset_write_ptr(pdata);
@@ -2789,33 +2736,6 @@ static struct device_node *mdss_dsi_pref_prim_panel(
 	return dsi_pan_node;
 }
 
-int mdss_dsi_ioctl_handler(struct mdss_panel_data *pdata, u32 cmd, void *arg)
-{
-	int rc = -ENOSYS;
-	struct msmfb_reg_access reg_access;
-
-	if (mdss_panel_is_power_off(pdata->panel_info.panel_power_state)) {
-		pr_err("%s: Panel is off\n", __func__);
-		return -EPERM;
-	}
-
-	switch (cmd) {
-	case MSMFB_REG_WRITE:
-	case MSMFB_REG_READ:
-		if (copy_from_user(&reg_access, arg, sizeof(reg_access)))
-			return -EFAULT;
-
-		rc = mdss_dsi_panel_ioctl_handler(pdata, cmd, arg);
-		break;
-	default:
-		pr_err("%s: unsupport ioctl =0x%x\n", __func__, cmd);
-		rc = -EFAULT;
-		break;
-	}
-
-	return rc;
-}
-
 /**
  * mdss_dsi_find_panel_of_node(): find device node of dsi panel
  * @pdev: platform_device of the dsi ctrl node
@@ -2830,17 +2750,13 @@ int mdss_dsi_ioctl_handler(struct mdss_panel_data *pdata, u32 cmd, void *arg)
  *
  * returns pointer to panel node on success, NULL on error.
  */
- #ifdef CONFIG_MACH_LENOVO_TBX704
 static char panel_name[MDSS_MAX_PANEL_LEN] = "";
-#endif
 static struct device_node *mdss_dsi_find_panel_of_node(
 		struct platform_device *pdev, char *panel_cfg)
 {
 	int len, i = 0;
 	int ctrl_id = pdev->id - 1;
-#ifndef CONFIG_MACH_LENOVO_TBX704
-	char panel_name[MDSS_MAX_PANEL_LEN] = "";
-#endif
+	//char panel_name[MDSS_MAX_PANEL_LEN] = "";
 	char ctrl_id_stream[3] =  "0:";
 	char *str1 = NULL, *str2 = NULL, *override_cfg = NULL;
 	char cfg_np_name[MDSS_MAX_PANEL_LEN] = "";
@@ -2901,13 +2817,13 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
-#ifdef CONFIG_MACH_LENOVO_TBX704
+
 		if(0 == strcmp(panel_name, "qcom,mdss_dsi_nt51021b_inx_wuxga_video"))
 			hq_regiser_hw_info(HWID_LCM,"nt51021b inx 1200*1920");
 
                 else if(0 == strcmp(panel_name, "qcom,mdss_dsi_nt51021b_boe_inx_wuxga_video"))
 			hq_regiser_hw_info(HWID_LCM,"nt51021b boe 1200*1920");
-#endif
+
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
@@ -2974,13 +2890,6 @@ static struct device_node *mdss_dsi_config_panel(struct platform_device *pdev,
 		pr_warn("%s:%d:dsi specific cfg not present\n",
 			__func__, __LINE__);
 
-	/* Parse panel config */
-	rc = mdss_panel_parse_panel_config_dt(ctrl_pdata);
-	if (rc) {
-		pr_err("%s: failed to parse panel config dt, rc = %d\n",
-								__func__, rc);
-		return NULL;
-	}
 	/* find panel device node */
 	dsi_pan_node = mdss_dsi_find_panel_of_node(pdev, panel_cfg);
 	if (!dsi_pan_node) {
@@ -3201,8 +3110,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	struct device_node *dsi_pan_node = NULL;
 	const char *ctrl_name;
 	struct mdss_util_intf *util;
-	static int te_irq_registered;
-	struct mdss_panel_data *pdata;
 
 	if (!pdev || !pdev->dev.of_node) {
 		pr_err("%s: pdev not found for DSI controller\n", __func__);
@@ -3322,28 +3229,10 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 			hw_vsync_handler, IRQF_TRIGGER_FALLING,
 			"VSYNC_GPIO", ctrl_pdata);
 		if (rc) {
-			pr_err("%s: TE request_irq failed for ESD\n", __func__);
+			pr_err("TE request_irq failed.\n");
 			goto error_shadow_clk_deinit;
 		}
-		te_irq_registered = 1;
 		disable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
-	}
-
-	pdata = &ctrl_pdata->panel_data;
-	init_completion(&pdata->te_done);
-	if (pdata->panel_info.type == MIPI_CMD_PANEL) {
-		if (!te_irq_registered) {
-			rc = devm_request_irq(&pdev->dev,
-				gpio_to_irq(pdata->panel_te_gpio),
-				test_hw_vsync_handler, IRQF_TRIGGER_FALLING,
-				"VSYNC_GPIO", &ctrl_pdata->panel_data);
-			if (rc) {
-				pr_err("%s: TE request_irq failed\n", __func__);
-				goto error_shadow_clk_deinit;
-			}
-			te_irq_registered = 1;
-			disable_irq_nosync(gpio_to_irq(pdata->panel_te_gpio));
-		}
 	}
 
 	rc = mdss_dsi_get_bridge_chip_params(pinfo, ctrl_pdata, pdev);
@@ -4079,7 +3968,6 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
-	struct mdss_panel_data *pdata = &ctrl_pdata->panel_data;
 
 	/*
 	 * If disp_en_gpio has been set previously (disp_en_gpio > 0)
@@ -4101,7 +3989,6 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	if (!gpio_is_valid(ctrl_pdata->disp_te_gpio))
 		pr_err("%s:%d, TE gpio not specified\n",
 						__func__, __LINE__);
-	pdata->panel_te_gpio = ctrl_pdata->disp_te_gpio;
 
 	ctrl_pdata->bklt_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-bklight-en-gpio", 0);
@@ -4113,7 +4000,6 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
 						__func__, __LINE__);
-#ifdef CONFIG_MACH_LENOVO_TBX704
 	/* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
 	pr_err("get lcd_power_en gpio \n");
 	lcd_power_en = of_get_named_gpio(ctrl_pdev->dev.of_node,
@@ -4129,7 +4015,7 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 		pr_err("%s:%d, lcd_level_shift gpio not specified\n",
 						__func__, __LINE__);
 	/* Add-end by Phoenix.Wu for Achillies4 Plus LCD */
-#endif
+
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 
 		ctrl_pdata->mode_gpio = of_get_named_gpio(
@@ -4304,10 +4190,6 @@ int dsi_panel_device_register(struct platform_device *ctrl_pdev,
 
 	pr_info("%s: Continuous splash %s\n", __func__,
 		pinfo->cont_splash_enabled ? "enabled" : "disabled");
-
-	if (pinfo->cont_splash_enabled &&
-		pinfo->forced_tx_mode_ftr_enabled)
-		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
 
 	rc = mdss_register_panel(ctrl_pdev, &(ctrl_pdata->panel_data));
 	if (rc) {

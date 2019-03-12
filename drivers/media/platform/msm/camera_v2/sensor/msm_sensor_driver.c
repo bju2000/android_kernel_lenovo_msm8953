@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,12 +17,7 @@
 #include "camera.h"
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
-
-#ifdef CONFIG_MACH_LENOVO_TB8703
-#include <soc/qcom/camera2.h>
-
-extern struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
-#endif
+#include <linux/hqsysfs.h>
 
 /* Logging macro */
 #undef CDBG
@@ -30,6 +25,7 @@ extern struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
 
 #define SENSOR_MAX_MOUNTANGLE (360)
 
+extern int8_t module_id;
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev);
 
@@ -111,11 +107,7 @@ static int32_t msm_sensor_driver_create_i2c_v4l_subdev
 	s_ctrl->msm_sd.sd.entity.name =	s_ctrl->msm_sd.sd.name;
 	s_ctrl->sensordata->sensor_info->session_id = session_id;
 	s_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x3;
-	rc = msm_sd_register(&s_ctrl->msm_sd);
-	if (rc < 0) {
-		pr_err("failed: msm_sd_register rc %d", rc);
-		return rc;
-	}
+	msm_sd_register(&s_ctrl->msm_sd);
 	msm_sensor_v4l2_subdev_fops = v4l2_subdev_fops;
 #ifdef CONFIG_COMPAT
 	msm_sensor_v4l2_subdev_fops.compat_ioctl32 =
@@ -152,11 +144,7 @@ static int32_t msm_sensor_driver_create_v4l_subdev
 	s_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_SENSOR;
 	s_ctrl->msm_sd.sd.entity.name = s_ctrl->msm_sd.sd.name;
 	s_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x3;
-	rc = msm_sd_register(&s_ctrl->msm_sd);
-	if (rc < 0) {
-		pr_err("failed: msm_sd_register rc %d", rc);
-		return rc;
-	}
+	msm_sd_register(&s_ctrl->msm_sd);
 	msm_cam_copy_v4l2_subdev_fops(&msm_sensor_v4l2_subdev_fops);
 #ifdef CONFIG_COMPAT
 	msm_sensor_v4l2_subdev_fops.compat_ioctl32 =
@@ -434,11 +422,17 @@ static int32_t msm_sensor_create_pd_settings(void *setting,
 
 #ifdef CONFIG_COMPAT
 	if (is_compat_task()) {
-		rc = msm_sensor_get_pw_settings_compat(
-			pd, pu, size_down);
-		if (rc < 0) {
-			pr_err("failed");
-			return -EFAULT;
+		int i = 0;
+		struct msm_sensor_power_setting32 *power_setting_iter =
+		(struct msm_sensor_power_setting32 *)compat_ptr((
+		(struct msm_camera_sensor_slave_info32 *)setting)->
+		power_setting_array.power_setting);
+
+		for (i = 0; i < size_down; i++) {
+			pd[i].config_val = power_setting_iter[i].config_val;
+			pd[i].delay = power_setting_iter[i].delay;
+			pd[i].seq_type = power_setting_iter[i].seq_type;
+			pd[i].seq_val = power_setting_iter[i].seq_val;
 		}
 	} else
 #endif
@@ -600,7 +594,6 @@ static int32_t msm_sensor_get_power_settings(void *setting,
 		power_info);
 	if (rc < 0) {
 		pr_err("failed");
-		kfree(power_info->power_setting);
 		return -EINVAL;
 	}
 	return rc;
@@ -642,73 +635,6 @@ static void msm_sensor_fill_sensor_info(struct msm_sensor_ctrl_t *s_ctrl,
 	strlcpy(entity_name, s_ctrl->msm_sd.sd.entity.name, MAX_SENSOR_NAME);
 }
 
-#ifdef CONFIG_MACH_LENOVO_TB8703
-/* add sensor info for factory mode
-   begin
-*/
-static struct kobject *msm_sensor_device=NULL;
-static char module_info[80] = {0};
-
-void msm_sensor_set_module_info(struct msm_sensor_ctrl_t *s_ctrl)
-{
-	printk(" s_ctrl->sensordata->camera_type = %d\n", s_ctrl->sensordata->sensor_info->position);
-
-	switch (s_ctrl->sensordata->sensor_info->position) {
-		case BACK_CAMERA_B:
-			strcat(module_info, "back: ");
-			break;
-		case FRONT_CAMERA_B:
-			strcat(module_info, "front: ");
-			break;
-		default:
-			strcat(module_info, "unknown: ");
-			break;
-	}
-	strcat(module_info, s_ctrl->sensordata->sensor_name);
-	strcat(module_info, "\n");
-}
-
-static ssize_t msm_sensor_module_id_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	ssize_t rc = 0;
-
-	sprintf(buf, "%s\n", module_info);
-	rc = strlen(buf) + 1;
-
-	return rc;
-}
-
-static DEVICE_ATTR(sensor, 0444, msm_sensor_module_id_show, NULL);
-
-int32_t msm_sensor_init_device_name(void)
-{
-	int32_t rc = 0;
-	pr_err("%s %d\n", __func__,__LINE__);
-	if(msm_sensor_device != NULL){
-		pr_err("Macle android_camera already created\n");
-		return 0;
-	}
-	msm_sensor_device = kobject_create_and_add("android_camera", NULL);
-	if (msm_sensor_device == NULL) {
-		printk("%s: subsystem_register failed\n", __func__);
-		rc = -ENOMEM;
-		return rc ;
-	}
-	rc = sysfs_create_file(msm_sensor_device, &dev_attr_sensor.attr);
-	if (rc) {
-		printk("%s: sysfs_create_file failed\n", __func__);
-		kobject_del(msm_sensor_device);
-	}
-
-	return 0 ;
-}
-/* add sensor info for factory mode
-   end
-*/
-
-#endif
-
 /* static function definition */
 int32_t msm_sensor_driver_probe(void *setting,
 	struct msm_sensor_info_t *probed_info, char *entity_name)
@@ -718,14 +644,11 @@ int32_t msm_sensor_driver_probe(void *setting,
 	struct msm_camera_cci_client        *cci_client = NULL;
 	struct msm_camera_sensor_slave_info *slave_info = NULL;
 	struct msm_camera_slave_info        *camera_info = NULL;
-#ifdef CONFIG_MACH_LENOVO_TB8703
-	int32_t i = 0;
-#endif
 
 	unsigned long                        mount_pos = 0;
 	uint32_t                             is_yuv;
-
-	pr_err("enter msm_sensor_driver_probe");
+        char *imx219_ofilm="imx219_ofilm";
+        char *imx219 = "imx219";
 	/* Validate input parameters */
 	if (!setting) {
 		pr_err("failed: slave_info %pK", setting);
@@ -737,8 +660,6 @@ int32_t msm_sensor_driver_probe(void *setting,
 	if (!slave_info)
 		return -ENOMEM;
 #ifdef CONFIG_COMPAT
-	pr_err("enter msm_sensor_driver_probe compat");
-
 	if (is_compat_task()) {
 		struct msm_camera_sensor_slave_info32 *slave_info32 =
 			kzalloc(sizeof(*slave_info32), GFP_KERNEL);
@@ -798,8 +719,6 @@ int32_t msm_sensor_driver_probe(void *setting,
 	} else
 #endif
 	{
-		pr_err("enter msm_sensor_driver_probe compat else");
-
 		if (copy_from_user(slave_info,
 					(void *)setting, sizeof(*slave_info))) {
 			pr_err("failed: copy_from_user");
@@ -807,48 +726,20 @@ int32_t msm_sensor_driver_probe(void *setting,
 			goto free_slave_info;
 		}
 	}
-
-	if (strlen(slave_info->sensor_name) >= MAX_SENSOR_NAME ||
-		strlen(slave_info->eeprom_name) >= MAX_SENSOR_NAME ||
-		strlen(slave_info->actuator_name) >= MAX_SENSOR_NAME ||
-		strlen(slave_info->ois_name) >= MAX_SENSOR_NAME) {
-		pr_err("failed: name len greater than 32.\n");
-		pr_err("sensor name len:%zu, eeprom name len: %zu.\n",
-			strlen(slave_info->sensor_name),
-			strlen(slave_info->eeprom_name));
-		pr_err("actuator name len: %zu, ois name len:%zu.\n",
-			strlen(slave_info->actuator_name),
-			strlen(slave_info->ois_name));
-		rc = -EINVAL;
-		goto free_slave_info;
-	}
-	pr_err("enter msm_sensor_driver_probe before lenovo");
-
-#ifdef CONFIG_MACH_LENOVO_TB8703
-	//lct.huk added for eeprom match id 20160523
-	if(s_vendor_eeprom[i].eeprom_name != NULL){
-		for(i=0; i<CAMERA_VENDOR_EEPROM_COUNT_MAX; i++){
-			if(strcmp(slave_info->eeprom_name,s_vendor_eeprom[i].eeprom_name) == 0){
-			CDBG(" dtsi eeprom_name[%d]=%s, module_id=%d\n",i,s_vendor_eeprom[i].eeprom_name, s_vendor_eeprom[i].module_id);//s_vendor_eeprom is from kernel camera dtsi
-				if(((strcmp(slave_info->sensor_name,"ov5695_f5695ak") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))
-					|| ((strcmp(slave_info->sensor_name,"ov5695_ccbfl05006") == 0) && (s_vendor_eeprom[i].module_id == MID_LITEARRAY))
-					|| ((strcmp(slave_info->sensor_name,"imx219_fx219aq") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))
-					){
-					CDBG("module found!probe continue!\n");
-					break;
-				}
-		      }
-			}
-		if(i >= CAMERA_VENDOR_EEPROM_COUNT_MAX){
-			pr_err("module not found!probe break!\n");
-			rc = -EFAULT;
-			goto free_slave_info;
-		}
-}
-
-#endif
-	pr_err("enter msm_sensor_driver_probe after lenovo");
-
+        if((!strncmp(slave_info->sensor_name,imx219,strlen(slave_info->sensor_name)))||(!strncmp(slave_info->sensor_name,imx219_ofilm,strlen(slave_info->sensor_name))))
+          {
+             if((!strncmp(slave_info->sensor_name,imx219,strlen(slave_info->sensor_name))&&(6==module_id))||(!strncmp(slave_info->sensor_name,imx219_ofilm,strlen(imx219_ofilm))&&(7==module_id)))
+             {
+               pr_err("IMX219_QTECH OR IMX219_OFILM SUCCESS !\n");
+             }else
+             {
+                 pr_err(" NOT IMX219 QTECH OR IMX219 OFILM\n");
+                  goto free_slave_info;
+             }
+          }else
+          {
+             pr_err("CONTINUE\n");
+          }
 	/* Print slave info */
 	CDBG("camera id %d Slave addr 0x%X addr_type %d\n",
 		slave_info->camera_id, slave_info->slave_addr,
@@ -892,12 +783,9 @@ int32_t msm_sensor_driver_probe(void *setting,
 		 */
 		if (slave_info->sensor_id_info.sensor_id ==
 			s_ctrl->sensordata->cam_slave_info->
-				sensor_id_info.sensor_id &&
-			!(strcmp(slave_info->sensor_name,
-			s_ctrl->sensordata->cam_slave_info->sensor_name))) {
-			pr_err("slot%d: sensor name: %s sensor id%d already probed\n",
+				sensor_id_info.sensor_id) {
+			pr_err("slot%d: sensor id%d already probed\n",
 				slave_info->camera_id,
-				slave_info->sensor_name,
 				s_ctrl->sensordata->cam_slave_info->
 					sensor_id_info.sensor_id);
 			msm_sensor_fill_sensor_info(s_ctrl,
@@ -926,7 +814,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 
 	camera_info = kzalloc(sizeof(struct msm_camera_slave_info), GFP_KERNEL);
 	if (!camera_info)
-		goto free_power_settings;
+		goto free_slave_info;
 
 	s_ctrl->sensordata->slave_info = camera_info;
 
@@ -1025,6 +913,12 @@ CSID_TG:
 	pr_err("%s probe succeeded", slave_info->sensor_name);
 
 	/*
+	  Set probe succeeded flag to 1 so that no other camera shall
+	 * probed on this slot
+	 */
+	s_ctrl->is_probe_succeed = 1;
+
+	/*
 	 * Update the subdevice id of flash-src based on availability in kernel.
 	 */
 	if (strlen(slave_info->flash_name) == 0) {
@@ -1076,25 +970,18 @@ CSID_TG:
 
 	msm_sensor_fill_sensor_info(s_ctrl, probed_info, entity_name);
 
-#ifdef CONFIG_MACH_LENOVO_TB8703
-	msm_sensor_init_device_name();
-	msm_sensor_set_module_info(s_ctrl);
-#endif
+	if(0 == s_ctrl->id){
+		hq_regiser_hw_info(HWID_MAIN_CAM, (char *)(slave_info->sensor_name));
+	}else if(2 == s_ctrl->id){
+		hq_regiser_hw_info(HWID_SUB_CAM, (char *)(slave_info->sensor_name));
+	}
 
-	/*
-	 * Set probe succeeded flag to 1 so that no other camera shall
-	 * probed on this slot
-	 */
-	s_ctrl->is_probe_succeed = 1;
 	return rc;
 
 camera_power_down:
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
 free_camera_info:
 	kfree(camera_info);
-free_power_settings:
-	kfree(s_ctrl->sensordata->power_info.power_setting);
-	kfree(s_ctrl->sensordata->power_info.power_down_setting);
 free_slave_info:
 	kfree(slave_info);
 	return rc;

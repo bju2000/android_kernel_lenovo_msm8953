@@ -875,10 +875,10 @@ static int msm_lsm_ioctl_shared(struct snd_pcm_substream *substream,
 		atomic_set(&prtd->event_wait_stop, 0);
 
 		/*
-		 * Release the api lock before wait to allow
-		 * other IOCTLs to be invoked while waiting
-		 * for event
-		 */
+		* Release the api lock before wait to allow
+		* other IOCTLs to be invoked while waiting
+		* for event
+		*/
 		mutex_unlock(&prtd->lsm_api_lock);
 		rc = wait_event_freezable(prtd->event_wait,
 				(cmpxchg(&prtd->event_avail, 1, 0) ||
@@ -1141,12 +1141,12 @@ static int msm_lsm_ioctl_compat(struct snd_pcm_substream *substream,
 			pr_err("%s: payload_size %d is invalid, max allowed = %d\n",
 				__func__, userarg32.payload_size,
 				LISTEN_MAX_STATUS_PAYLOAD_SIZE);
-			err = -EINVAL;
+			err = -EFAULT;
 			goto done;
 		}
 
 		size = sizeof(*user) + userarg32.payload_size;
-		user = kzalloc(size, GFP_KERNEL);
+		user = kmalloc(size, GFP_KERNEL);
 		if (!user) {
 			dev_err(rtd->dev,
 				"%s: Allocation failed event status size %d\n",
@@ -1167,7 +1167,7 @@ static int msm_lsm_ioctl_compat(struct snd_pcm_substream *substream,
 			err = -EFAULT;
 		}
 		if (!err) {
-			user32 = kzalloc(size, GFP_KERNEL);
+			user32 = kmalloc(size, GFP_KERNEL);
 			if (!user32) {
 				dev_err(rtd->dev,
 					"%s: Allocation event user status size %d\n",
@@ -1309,7 +1309,7 @@ static int msm_lsm_ioctl_compat(struct snd_pcm_substream *substream,
 				"%s: %s: Invalid num_params %d\n",
 				__func__, "SET_MODULE_PARAMS_32",
 				p_data.num_params);
-			err = -EINVAL;
+			err = -EFAULT;
 			goto done;
 		}
 
@@ -1319,7 +1319,7 @@ static int msm_lsm_ioctl_compat(struct snd_pcm_substream *substream,
 				"%s: %s: Invalid size %d\n",
 				__func__, "SET_MODULE_PARAMS_32",
 				p_data.data_size);
-			err = -EINVAL;
+			err = -EFAULT;
 			goto done;
 		}
 
@@ -1580,7 +1580,7 @@ static int msm_lsm_ioctl(struct snd_pcm_substream *substream,
 
 		size = sizeof(struct snd_lsm_event_status) +
 		userarg.payload_size;
-		user = kzalloc(size, GFP_KERNEL);
+		user = kmalloc(size, GFP_KERNEL);
 		if (!user) {
 			dev_err(rtd->dev,
 				"%s: Allocation failed event status size %d\n",

@@ -331,7 +331,7 @@ static int cmdq_host_alloc_tdl(struct cmdq_host *cq_host)
 	if (!cq_host->desc_base || !cq_host->trans_desc_base)
 		return -ENOMEM;
 
-	pr_debug("desc-base: 0x%pK trans-base: 0x%pK\n desc_dma 0x%llx trans_dma: 0x%llx\n",
+	pr_info("desc-base: 0x%p trans-base: 0x%p\n desc_dma 0x%llx trans_dma: 0x%llx\n",
 		 cq_host->desc_base, cq_host->trans_desc_base,
 		(unsigned long long)cq_host->desc_dma_base,
 		(unsigned long long) cq_host->trans_desc_dma_base);
@@ -799,11 +799,12 @@ irqreturn_t cmdq_irq(struct mmc_host *mmc, int err)
 	unsigned long tag = 0, comp_status;
 	struct cmdq_host *cq_host = (struct cmdq_host *)mmc_cmdq_private(mmc);
 	unsigned long err_info = 0;
-	struct mmc_request *mrq = NULL;
+	struct mmc_request *mrq;
 	int ret;
 	u32 dbr_set = 0;
 
 	status = cmdq_readl(cq_host, CQIS);
+	cmdq_writel(cq_host, status, CQIS);
 
 	if (!status && !err)
 		return IRQ_NONE;
@@ -826,17 +827,6 @@ irqreturn_t cmdq_irq(struct mmc_host *mmc, int err)
 		if (ret)
 			pr_err("%s: %s: halt failed ret=%d\n",
 					mmc_hostname(mmc), __func__, ret);
-
-		/*
-		 * Clear the CQIS after halting incase of error. This is done
-		 * because if CQIS is cleared before halting, the CQ will
-		 * continue with issueing commands for rest of requests with
-		 * Doorbell rung. This will overwrite the Resp Arg register.
-		 * So CQ must be halted first and then CQIS cleared incase
-		 * of error
-		 */
-		cmdq_writel(cq_host, status, CQIS);
-
 		cmdq_dumpregs(cq_host);
 
 		if (!err_info) {
@@ -925,15 +915,13 @@ skip_cqterri:
 
 			mrq->cmdq_req->resp_err = true;
 			pr_err("%s: Response error (0x%08x) from card !!!",
-				mmc_hostname(mmc), cmdq_readl(cq_host, CQCRA));
+				mmc_hostname(mmc), status);
 		} else {
 			mrq->cmdq_req->resp_idx = cmdq_readl(cq_host, CQCRI);
 			mrq->cmdq_req->resp_arg = cmdq_readl(cq_host, CQCRA);
 		}
 
 		cmdq_finish_data(mmc, tag);
-	} else {
-		cmdq_writel(cq_host, status, CQIS);
 	}
 
 	if (status & CQIS_TCC) {
@@ -954,17 +942,12 @@ skip_cqterri:
 		 * before setting doorbell, hence one is not needed here.
 		 */
 		for_each_set_bit(tag, &comp_status, cq_host->num_slots) {
-			mrq = get_req_by_tag(cq_host, tag);
-			if (!((mrq->cmd && mrq->cmd->error) ||
-					mrq->cmdq_req->resp_err ||
-					(mrq->data && mrq->data->error))) {
-				/* complete the corresponding mrq */
-				pr_debug("%s: completing tag -> %lu\n",
-					 mmc_hostname(mmc), tag);
-				MMC_TRACE(mmc, "%s: completing tag -> %lu\n",
-					__func__, tag);
+			/* complete the corresponding mrq */
+			pr_debug("%s: completing tag -> %lu\n",
+				 mmc_hostname(mmc), tag);
+			MMC_TRACE(mmc, "%s: completing tag -> %lu\n",
+				__func__, tag);
 				cmdq_finish_data(mmc, tag);
-			}
 		}
 	}
 

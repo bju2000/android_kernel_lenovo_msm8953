@@ -203,8 +203,6 @@ struct input_keymap_entry {
 #define SYN_CONFIG		1
 #define SYN_MT_REPORT		2
 #define SYN_DROPPED		3
-#define SYN_TIME_SEC		4
-#define SYN_TIME_NSEC		5
 #define SYN_MAX			0xf
 #define SYN_CNT			(SYN_MAX+1)
 
@@ -483,12 +481,6 @@ struct input_keymap_entry {
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
-#define KEY_HALL_OPEN           0x276
-#define KEY_HALL_CLOSE          0x277
-#define KEY_CAPSENSOR_IQS263_CS0 0x278
-#define KEY_CAPSENSOR_IQS263_CS1 0x279
-#define KEY_CAPSENSOR_IQS263_CS2 0x280
-
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
@@ -560,8 +552,8 @@ struct input_keymap_entry {
 #define BTN_TOOL_LENS		0x147
 #define BTN_TOOL_QUINTTAP	0x148	/* Five fingers on trackpad */
 #define BTN_TOUCH		0x14a
-#define BTN_STYLUS		0x14b
-#define BTN_STYLUS2		0x14c
+#define BTN_STYLUS		0x292//0x14b
+#define BTN_STYLUS2		0x293//0x14c
 #define BTN_TOOL_DOUBLETAP	0x14d
 #define BTN_TOOL_TRIPLETAP	0x14e
 #define BTN_TOOL_QUADTAP	0x14f	/* Four fingers on trackpad */
@@ -902,7 +894,6 @@ struct input_keymap_entry {
 #define SW_UNSUPPORT_INSERT	0x10  /* set = unsupported device inserted */
 #define SW_MICROPHONE2_INSERT   0x11  /* set = inserted */
 #define SW_MUTE_DEVICE		0x12  /* set = device disabled */
-#define SW_ONEKEY_LOW_POWER	0x13  /* set = low power mode */
 #define SW_MAX			0x20
 #define SW_CNT			(SW_MAX+1)
 

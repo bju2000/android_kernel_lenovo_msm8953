@@ -63,6 +63,7 @@ struct msm_sensor_fn_t {
 	int (*sensor_match_id)(struct msm_sensor_ctrl_t *);
 };
 
+
 struct msm_sensor_ctrl_t {
 	struct platform_device *pdev;
 	struct mutex *msm_sensor_mutex;
