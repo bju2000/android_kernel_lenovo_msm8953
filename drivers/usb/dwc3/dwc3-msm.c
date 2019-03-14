@@ -3892,7 +3892,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				dwc3_initialize(mdwc);
 				/* check dp/dm for SDP & runtime_put if !SDP */
 #ifdef CONFIG_MACH_LENOVO_TBX704
-				if (mdwc->detect_dpdm_floating) {
+				if (mdwc->detect_dpdm_floating) 
 #else
 				if (mdwc->detect_dpdm_floating && mdwc->chg_type == DWC3_SDP_CHARGER) 
 #endif

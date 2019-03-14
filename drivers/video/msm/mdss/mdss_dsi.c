@@ -26,7 +26,9 @@
 #include <linux/uaccess.h>
 #include <linux/msm-bus.h>
 #include <linux/pm_qos.h>
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+#include <linux/hqsysfs.h>
+#endif
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"

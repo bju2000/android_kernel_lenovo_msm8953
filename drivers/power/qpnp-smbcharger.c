@@ -8605,6 +8605,7 @@ static int smbchg_check_chg_version(struct smbchg_chip *chip)
 	return 0;
 }
 
+#ifndef CONFIG_MACH_LENOVO_TBX704
 static void rerun_hvdcp_det_if_necessary(struct smbchg_chip *chip)
 {
 	enum power_supply_type usb_supply_type;
@@ -8653,6 +8654,7 @@ static void rerun_hvdcp_det_if_necessary(struct smbchg_chip *chip)
 		}
 	}
 }
+#endif
 
 static int smbchg_probe(struct spmi_device *spmi)
 {

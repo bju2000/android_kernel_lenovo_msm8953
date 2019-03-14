@@ -25,15 +25,16 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
-#ifdef CONFIG_MACH_LENOVO_TBX704
 #include <linux/switch.h>
+#ifdef CONFIG_MACH_LENOVO_TBX704
 #include "msm8x16-wcd.h"
 #else
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include "wcd-mbhc-v2.h"
-#endif
 #include "wcdcal-hwdep.h"
+#endif
+
 
 #define WCD_MBHC_JACK_MASK (SND_JACK_HEADSET | SND_JACK_OC_HPHL | \
 			   SND_JACK_OC_HPHR | SND_JACK_LINEOUT | \
@@ -484,7 +485,7 @@ static void wcd_cancel_hs_detect_plug(struct wcd_mbhc *mbhc,
 	}
 	WCD_MBHC_RSC_LOCK(mbhc);
 }
-#if !defined(CONFIG_SPEAKER_EXT_PA) //p3585 ext pa,don't on hph pa here
+//#if !defined(CONFIG_SPEAKER_EXT_PA) //p3585 ext pa,don't on hph pa here
 static void wcd_mbhc_clr_and_turnon_hph_padac(struct wcd_mbhc *mbhc)
 {
 	bool pa_turned_on = false;
@@ -545,7 +546,7 @@ static void wcd_mbhc_set_and_turnoff_hph_padac(struct wcd_mbhc *mbhc)
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPH_PA_EN, 0);
 	usleep_range(wg_time * 1000, wg_time * 1000 + 50);
 }
-#endif
+//#endif
 int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 			uint32_t *zr)
 {

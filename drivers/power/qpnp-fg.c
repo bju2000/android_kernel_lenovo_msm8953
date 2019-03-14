@@ -35,6 +35,20 @@
 #include <linux/string_helpers.h>
 #include <linux/alarmtimer.h>
 #include <linux/qpnp/qpnp-revid.h>
+#ifdef CONFIG_MACH_LENOVO_TBX704
+#include "couloMeter.h"  //stone add
+
+
+///* stone add for debug start *///
+//#define DEBUG
+#define  COULOMETER_QPNP_FG_DEBUG
+#ifdef   COULOMETER_QPNP_FG_DEBUG
+#define LOG_INF pr_err
+#else
+#define LOG_INF pr_debug
+#endif
+///* stone add for debug end *///
+#endif
 
 /* Register offsets */
 
@@ -5558,6 +5572,8 @@ done:
 #define RSLOW_COMP_C1_OFFSET		0
 #define RSLOW_COMP_C2_OFFSET		2
 #define BATT_PROFILE_OFFSET		0x4C0
+
+#ifndef CONFIG_MACH_LENOVO_TBX704
 static void get_default_rslow_comp_settings(struct fg_chip *chip)
 {
 	int offset;
@@ -5575,6 +5591,7 @@ static void get_default_rslow_comp_settings(struct fg_chip *chip)
 	offset = RSLOW_COMP_REG + RSLOW_COMP_C1_OFFSET - BATT_PROFILE_OFFSET;
 	memcpy(&chip->rslow_comp.rslow_comp, chip->batt_profile + offset, 4);
 }
+#endif
 
 static int populate_system_data(struct fg_chip *chip)
 {
