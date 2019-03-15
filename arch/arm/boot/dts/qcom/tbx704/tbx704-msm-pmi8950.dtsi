@@ -11,10 +11,7 @@
  */
 
 &spmi_bus {
-
 	qcom,pmi8950@2 {
-
-
 		pmi8950_vadc: vadc@3100 {
 			chan@10 {
 				label = "pcba_vadc";

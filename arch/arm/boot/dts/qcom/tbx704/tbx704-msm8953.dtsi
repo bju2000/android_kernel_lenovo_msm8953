@@ -95,13 +95,21 @@
 	};
 
 	usb3: ssusb@7000000{
-		USB3_GDSC-supply = <&gdsc_usb30>;
+		vbus_dwc3-supply = <&smbcharger_charger_otg>;
 	};
 };
 
 &pm8953_vadc {
 	chan@11 {
 		label = "case_therm";
+		reg = <0x11>;
+		qcom,decimation = <0>;
+		qcom,pre-div-channel-scaling = <0>;
+		qcom,calibration-type = "ratiometric";
+		qcom,scale-function = <2>;
+		qcom,hw-settle-time = <2>;
+		qcom,fast-avg-setup = <0>;
+		qcom,vadc-thermal-node;
 	};
 
 	/delete-node/chan@13;

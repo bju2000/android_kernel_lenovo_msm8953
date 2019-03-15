@@ -11,20 +11,6 @@
  * GNU General Public License for more details.
  */
 
-&soc {
-	led_flash0: qcom,camera-flash {
-		cell-index = <0>;
-		compatible = "qcom,camera-flash";
-		qcom,flash-type = <1>;
-		qcom,flash-source = <&pmi8950_flash0>;
-		qcom,torch-source = <&pmi8950_torch0>;
-		qcom,switch-source = <&pmi8950_switch>;
-	};
-};
-
-
-
-
 &cci {
 	/delete-node/ qcom,eeprom@0;
 	eeprom0: qcom,eeprom@20 {

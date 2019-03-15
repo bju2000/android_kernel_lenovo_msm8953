@@ -13,6 +13,28 @@
 #include "dsi-panel-nt51021bboe-inx-wuxga-video.dtsi"
 #include "dsi-panel-nt51021b-inx-wuxga-video.dtsi"
 
+&soc {
+	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "lab";
+			qcom,supply-min-voltage = <4600000>;
+			qcom,supply-max-voltage = <6000000>;
+			qcom,supply-enable-load = <100000>;
+			qcom,supply-disable-load = <100>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "ibb";
+			qcom,supply-min-voltage = <4600000>;
+			qcom,supply-max-voltage = <6000000>;
+			qcom,supply-enable-load = <100000>;
+			qcom,supply-disable-load = <100>;
+			qcom,supply-post-on-sleep = <10>;
+		};
+	};
+};
 
 /* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
 &dsi_nt51021b_inx_wuxga_vid {

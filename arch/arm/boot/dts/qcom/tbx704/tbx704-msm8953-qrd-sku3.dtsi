@@ -20,13 +20,6 @@
 	qcom,platform-lcd-level-shift-en-gpio = <&tlmm 17 0>;
 };
 
-
-/* Add-Begin by Phoenix.Wu for Achillies4 Plus LCD */
-&dsi_nt51021b_inx_wuxga_vid {
-	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
-};
-/* Add-end by Phoenix.Wu for Achillies4 Plus LCD */
-
 &int_codec {
 	status = "ok";
 };
