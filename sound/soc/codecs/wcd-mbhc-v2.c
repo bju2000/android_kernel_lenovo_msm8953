@@ -1526,7 +1526,7 @@ correct_plug_type:
 			pr_debug("%s: cable is extension cable\n", __func__);
 			plug_type = MBHC_PLUG_TYPE_HIGH_HPH;
 			wrk_complete = true;
-			#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 			try_tmp++;
 #endif
 #ifdef CONFIG_MACH_LENOVO_KUNTAO

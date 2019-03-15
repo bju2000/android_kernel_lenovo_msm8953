@@ -1870,7 +1870,10 @@ static int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	if (atomic_inc_return(&quin_mi2s_clk_ref) == 1) {
+#endif
+
 	if (pdata->vaddr_gpio_mux_quin_ctl) {
 		val = ioread32(pdata->vaddr_gpio_mux_quin_ctl);
 		val = val | 0x00000001;
@@ -1888,6 +1891,9 @@ static int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		pr_err("failed to enable codec gpios\n");
 		goto err;
 	}
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if (atomic_inc_return(&quin_mi2s_clk_ref) == 1) {
+#endif
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		pr_err("%s: set fmt cpu dai failed\n", __func__);
@@ -1903,16 +1909,27 @@ err:
 static void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 {
 	int ret;
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+#endif
+
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
-	if ((atomic_dec_return(&quin_mi2s_clk_ref) == 0) && ((pdata->ext_pa & QUIN_MI2S_ID) == QUIN_MI2S_ID)) {
+#ifndef CONFIG_MACH_LENOVO_TBX704
+	if ((atomic_dec_return(&quin_mi2s_clk_ref) == 0) && ((pdata->ext_pa & QUIN_MI2S_ID) == QUIN_MI2S_ID))
+#endif
+
+	{
 		ret = msm_mi2s_sclk_ctl(substream, false);
 		if (ret < 0)
 			pr_err("%s:clock disable failed\n", __func__);
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if (atomic_read(&quin_mi2s_clk_ref) > 0)
+		atomic_dec(&quin_mi2s_clk_ref);
+#endif
 		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "quin_i2s");
 		if (ret < 0) {
 			pr_err("%s: gpio set cannot be de-activated %sd",
