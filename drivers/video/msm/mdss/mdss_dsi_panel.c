@@ -517,6 +517,7 @@ exit:
 	return rc;
 }
 
+#ifndef CONFIG_MACH_LENOVO_TBX704
 static int mdss_dsi_get_pwr_mode(struct mdss_panel_data *pdata,
 			u8 *pwr_mode, bool hs_mode)
 {
@@ -544,6 +545,7 @@ static int mdss_dsi_get_pwr_mode(struct mdss_panel_data *pdata,
 
 	return 0;
 }
+#endif
 
 /**
  * mdss_dsi_roi_merge() -  merge two roi into single roi
@@ -590,6 +592,7 @@ static int mdss_dsi_roi_merge(struct mdss_dsi_ctrl_pdata *ctrl,
 	return ans;
 }
 
+#ifndef CONFIG_MACH_LENOVO_TBX704
 int mdss_panel_parse_panel_config_dt(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	struct device_node *np;
@@ -651,13 +654,19 @@ int mdss_panel_parse_panel_config_dt(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 
 	return 0;
 }
+#endif
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
 static char paset[] = {0x2b, 0x00, 0x00, 0x05, 0x00};	/* DTYPE_DCS_LWRITE */
 
 /* pack into one frame before sent */
 static struct dsi_cmd_desc set_col_page_addr_cmd[] = {
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 1, sizeof(caset)}, caset},	/* packed */
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(paset)}, paset},
+#else
 	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0, sizeof(caset)}, caset},	/* packed */
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(paset)}, paset},
+#endif
 };
 
 static void mdss_dsi_send_col_page_addr(struct mdss_dsi_ctrl_pdata *ctrl,
@@ -945,8 +954,10 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	struct mdss_panel_info *pinfo;
 	struct dsi_panel_cmds *on_cmds;
 	int ret = 0;
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	u8 pwr_mode = 0;
 	static int panel_recovery_retry;
+#endif
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -963,12 +974,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		if (ctrl->ndx != DSI_CTRL_LEFT)
 			goto end;
 	}
-
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	if (ctrl->panel_config.bare_board) {
 		pr_warn("%s: This is bare_board configuration\n", __func__);
 		goto end;
 	}
-
+#endif
 	on_cmds = &ctrl->on_cmds;
 
 	if ((pinfo->mipi.dms_mode == DYNAMIC_MODE_SWITCH_IMMEDIATE) &&
@@ -986,6 +997,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	if (ctrl->ds_registered)
 		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	mdss_dsi_get_pwr_mode(pdata, &pwr_mode, false);
 	if (pinfo->disp_on_check_val != pwr_mode) {
 		pr_err("%s: Display failure: read = 0x%x, expected = 0x%x\n",
@@ -996,10 +1008,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		pdata->panel_info.panel_dead = true;
 	} else
 		panel_recovery_retry = 0;
+#endif
 end:
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	if (pinfo->forced_tx_mode_ftr_enabled)
 		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
-
+#endif
 	pr_debug("%s:-\n", __func__);
 	return ret;
 }

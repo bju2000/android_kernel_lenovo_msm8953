@@ -2975,7 +2975,7 @@ static struct device_node *mdss_dsi_config_panel(struct platform_device *pdev,
 		/* dsi panel cfg not present */
 		pr_warn("%s:%d:dsi specific cfg not present\n",
 			__func__, __LINE__);
-
+#ifndef CONFIG_MACH_LENOVO_TBX704
 	/* Parse panel config */
 	rc = mdss_panel_parse_panel_config_dt(ctrl_pdata);
 	if (rc) {
@@ -2983,6 +2983,8 @@ static struct device_node *mdss_dsi_config_panel(struct platform_device *pdev,
 								__func__, rc);
 		return NULL;
 	}
+#endif
+
 	/* find panel device node */
 	dsi_pan_node = mdss_dsi_find_panel_of_node(pdev, panel_cfg);
 	if (!dsi_pan_node) {
