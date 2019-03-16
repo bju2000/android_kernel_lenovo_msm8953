@@ -3588,7 +3588,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->id_state = DWC3_ID_GROUND;
 		dwc3_ext_event_notify(mdwc);
 	}
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+		fusb_dwc3_msm = mdwc;
+#endif
 	return 0;
 
 put_dwc3:
@@ -3843,11 +3845,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		mdwc->ss_phy->flags |= PHY_HOST_MODE;
 		usb_phy_notify_connect(mdwc->hs_phy, USB_SPEED_HIGH);
 
-		#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 		if(!have_fusb302)
 #endif
-		if (!IS_ERR(mdwc->vbus_reg))
-			ret = regulator_enable(mdwc->vbus_reg);
+		{
+			if (!IS_ERR(mdwc->vbus_reg))
+				ret = regulator_enable(mdwc->vbus_reg);
+		}
 		if (ret) {
 			dev_err(mdwc->dev, "unable to enable vbus_reg\n");
 			mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
@@ -3875,11 +3879,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			dev_err(mdwc->dev,
 				"%s: failed to add XHCI pdev ret=%d\n",
 				__func__, ret);
-		#ifdef CONFIG_MACH_LENOVO_TBX704
+#ifdef CONFIG_MACH_LENOVO_TBX704
 		if(!have_fusb302)
 #endif
+		{
 			if (!IS_ERR(mdwc->vbus_reg))
 				regulator_disable(mdwc->vbus_reg);
+		}
 			mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
 			mdwc->ss_phy->flags &= ~PHY_HOST_MODE;
 			pm_runtime_put_sync(mdwc->dev);
@@ -3930,8 +3936,13 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		dev_dbg(mdwc->dev, "%s: turn off host\n", __func__);
 
 		usb_unregister_atomic_notify(&mdwc->usbdev_nb);
+#ifdef CONFIG_MACH_LENOVO_TBX704
+		if(!have_fusb302) 
+#endif
+		{
 		if (!IS_ERR(mdwc->vbus_reg))
 			ret = regulator_disable(mdwc->vbus_reg);
+		}
 		if (ret) {
 			dev_err(mdwc->dev, "unable to disable vbus_reg\n");
 			return ret;
@@ -4042,6 +4053,10 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 	return 0;
 }
+
+#ifdef CONFIG_MACH_LENOVO_TBX704
+extern int is_pd_5v_insertion;
+#endif
 
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 {
@@ -4161,13 +4176,6 @@ static void dwc3_initialize(struct dwc3_msm *mdwc)
 	dbg_event(0xFF, "Initialized Start",
 			atomic_read(&mdwc->dev->power.usage_count));
 
-#ifdef CONFIG_MACH_LENOVO_TBX704
-	if (mdwc->bus_perf_client) {
-		mdwc->bus_vote = 1;
-		schedule_work(&mdwc->bus_vote_w);
-	}
-
-#endif
 	/* enable USB GDSC */
 	dwc3_msm_config_gdsc(mdwc, 1);
 

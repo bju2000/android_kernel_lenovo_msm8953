@@ -26,7 +26,9 @@
 #include <linux/uaccess.h>
 #include <linux/msm-bus.h>
 #include <linux/pm_qos.h>
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+#include <linux/hqsysfs.h>
+#endif
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
@@ -2786,7 +2788,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	case MDSS_EVENT_ENABLE_PARTIAL_ROI:
 		rc = mdss_dsi_ctl_partial_roi(pdata);
 		break;
-#ifdef CONFIG_MACH_LENOVO_KUNTAO
+#ifdef CONFIG_MACH_LENOVO_KUNTAO 
 	case MDSS_EVENT_ENABLE_TE:
 		rc = mdss_dsi_hndl_enable_te(ctrl_pdata,
 				(int) (unsigned long) arg);
