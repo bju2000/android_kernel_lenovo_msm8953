@@ -114,7 +114,16 @@
 		};
 	};
 	/delete-node/ vdd_vreg;
-}; 
+};
+
+&spmi_bus {
+	qcom,pmi8950@2 {
+		qcom,leds@a100 {
+			/delete-property/ status;
+			/delete-node/ qcom,led_mpp_2;
+		};
+	};
+};
 
 /{
 	qrd_batterydata: qcom,battery-data {
@@ -174,6 +183,7 @@
 };
 
 
+
 &pm8953_gpios {
 	/* GPIO 8 (USB_ID) */
 	gpio@c700 {
@@ -186,5 +196,13 @@
 		qcom,master-en = <1>;		// 1 – Enables features within the pin block based on configuration
 		status = "okay";
 	};
+};
+
+&wcd9xxx_intc {
+	status = "disabled";
+};
+
+&wcd_rst_gpio {
+	status = "disabled";
 };
 

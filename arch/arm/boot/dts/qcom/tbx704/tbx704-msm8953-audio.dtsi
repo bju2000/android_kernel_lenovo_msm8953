@@ -12,13 +12,15 @@
  */
 
 &int_codec {
+	status = "ok";
+	qcom,msm-hs-micbias-type = "internal";
 	qcom,cdc-us-euro-gpios = <&tlmm 9 0>;
-        qcom,msm-ext-pa = "primary";
-        qcom,msm-spk-ext-pa = <&tlmm 96 0>;
-        qcom,msm-spk-ext-pa1 = <&tlmm 23 0>;
-        qcom,msm-mbhc-hphl-swh = <1>;
-        qcom,msm-mclk-freq = <9600000>;
-        qcom,audio-routing =
+	qcom,msm-ext-pa = "primary";
+	qcom,msm-spk-ext-pa = <&tlmm 96 0>;
+	qcom,msm-spk-ext-pa1 = <&tlmm 23 0>;
+	qcom,msm-mbhc-hphl-swh = <1>;
+	qcom,msm-mclk-freq = <9600000>;
+	qcom,audio-routing =
                        "RX_BIAS", "MCLK",
                        "SPK_RX_BIAS", "MCLK",
                        "INT_LDO_H", "MCLK",

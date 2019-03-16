@@ -10,8 +10,8 @@
  * GNU General Public License for more details.
  */
 
-#include "dsi-panel-nt51021bboe-inx-wuxga-video.dtsi"
 #include "dsi-panel-nt51021b-inx-wuxga-video.dtsi"
+#include "dsi-panel-nt51021bboe-inx-wuxga-video.dtsi"
 
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {

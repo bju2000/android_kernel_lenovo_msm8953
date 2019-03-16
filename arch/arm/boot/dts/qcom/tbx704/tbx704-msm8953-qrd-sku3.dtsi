@@ -12,9 +12,6 @@
  */
 
 &mdss_dsi0 {
-	/delete-property/ lab-supply;
-	/delete-property/ ibb-supply;
-
 	qcom,dsi-pref-prim-pan = <&dsi_nt51021b_inx_wuxga_vid>;
 	qcom,platform-power-en-gpio = <&tlmm 16 0>;
 	qcom,platform-lcd-level-shift-en-gpio = <&tlmm 17 0>;

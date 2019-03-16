@@ -41,7 +41,6 @@
 			qcom,iterm-ma = <256>;
 			qcom,float-voltage-mv = <4400>;
 			qcom,resume-delta-mv = <100>;
-			/delete-property/ qcom,thermal-mitigation;
 			/delete-property/ qcom,parallel-usb-min-current-ma;
 			/delete-property/ qcom,parallel-usb-9v-min-current-ma;
 			/delete-property/ qcom,parallel-allowed-lowering-ma;

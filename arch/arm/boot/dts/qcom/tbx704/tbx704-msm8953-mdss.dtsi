@@ -15,6 +15,7 @@
 		mdss_dsi0: qcom,mdss_dsi_ctrl0@1a94000 {
 			lab-supply = <&lab_regulator>;
 			ibb-supply = <&ibb_regulator>;
+			vdd-supply = <&pm8953_l17>;
 		};
 
 		mdss_dsi1: qcom,mdss_dsi_ctrl1@1a96000 {

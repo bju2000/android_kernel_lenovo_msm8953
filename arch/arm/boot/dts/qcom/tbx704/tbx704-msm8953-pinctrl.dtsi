@@ -19,16 +19,6 @@
 				drive-strength = <6>; /* 6 MA */
 			};
 		};
-		sdc2_cmd_on: sdc2_cmd_on {
-			config {
-				drive-strength = <16>; /* 16 MA */
-			};
-		};
-		sdc2_data_on: sdc2_data_on {
-			config {
-				drive-strength = <16>; /* 16 MA */
-			};
-		};
 		goodix_spi_active: goodix_spi_active{
 			mux {
 				pins = "gpio135", "gpio136", "gpio137", "gpio138";
