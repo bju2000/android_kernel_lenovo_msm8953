@@ -18,6 +18,11 @@
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+#include <linux/hqsysfs.h>
+extern int8_t module_id;
+#endif
+
 #ifdef CONFIG_MACH_LENOVO_TB8703
 #include <soc/qcom/camera2.h>
 
@@ -774,8 +779,12 @@ int32_t msm_sensor_driver_probe(void *setting,
 
 	unsigned long                        mount_pos = 0;
 	uint32_t                             is_yuv;
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	char *imx219_ofilm="imx219_ofilm";
+	char *imx219 = "imx219";
+#else
 	pr_err("enter msm_sensor_driver_probe");
+#endif
 	/* Validate input parameters */
 	if (!setting) {
 		pr_err("failed: slave_info %pK", setting);
@@ -861,7 +870,22 @@ int32_t msm_sensor_driver_probe(void *setting,
 			goto free_slave_info;
 		}
 	}
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+        if((!strncmp(slave_info->sensor_name,imx219,strlen(slave_info->sensor_name)))||(!strncmp(slave_info->sensor_name,imx219_ofilm,strlen(slave_info->sensor_name))))
+          {
+             if((!strncmp(slave_info->sensor_name,imx219,strlen(slave_info->sensor_name))&&(6==module_id))||(!strncmp(slave_info->sensor_name,imx219_ofilm,strlen(imx219_ofilm))&&(7==module_id)))
+             {
+               pr_err("IMX219_QTECH OR IMX219_OFILM SUCCESS !\n");
+             }else
+             {
+                 pr_err(" NOT IMX219 QTECH OR IMX219 OFILM\n");
+                  goto free_slave_info;
+             }
+          }else
+          {
+             pr_err("CONTINUE\n");
+          }
+#else
 	if (strlen(slave_info->sensor_name) >= MAX_SENSOR_NAME ||
 		strlen(slave_info->eeprom_name) >= MAX_SENSOR_NAME ||
 		strlen(slave_info->actuator_name) >= MAX_SENSOR_NAME ||
@@ -877,6 +901,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 		goto free_slave_info;
 	}
 	pr_err("enter msm_sensor_driver_probe before lenovo");
+#endif
 
 #ifdef CONFIG_MACH_LENOVO_TB8703
 	//lct.huk added for eeprom match id 20160523
@@ -1144,6 +1169,14 @@ CSID_TG:
 	s_ctrl->sensordata->cam_slave_info = slave_info;
 
 	msm_sensor_fill_sensor_info(s_ctrl, probed_info, entity_name);
+
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if(0 == s_ctrl->id){
+		hq_regiser_hw_info(HWID_MAIN_CAM, (char *)(slave_info->sensor_name));
+	}else if(2 == s_ctrl->id){
+		hq_regiser_hw_info(HWID_SUB_CAM, (char *)(slave_info->sensor_name));
+	}
+#endif
 
 #ifdef CONFIG_MACH_LENOVO_TB8703
 	msm_sensor_init_device_name();

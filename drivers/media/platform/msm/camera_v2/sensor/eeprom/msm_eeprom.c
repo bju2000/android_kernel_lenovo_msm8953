@@ -22,6 +22,11 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+int8_t module_id;
+int lsc_group_avail = -1;
+#endif
+
 #ifdef CONFIG_MACH_LENOVO_TB8703
 struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
 #endif
@@ -240,6 +245,14 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 			}
 		}
 	}
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	if((*(block->mapdata + 63) & 0x40) == 1){
+		lsc_group_avail = 0;		
+	}
+	if((*(block->mapdata + 63) & 0x10) == 1){
+        	lsc_group_avail = 2;          
+	}
+#endif
 	return rc;
 }
 /**
@@ -1167,6 +1180,30 @@ static int msm_eeprom_spi_parse_of(struct msm_camera_spi_client *spic)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_LENOVO_TBX704
+static int msm_eeprom_i2c_match_id(struct msm_eeprom_ctrl_t *e_ctrl) {
+    int rc;
+    uint16_t chipid = 0;
+    struct msm_camera_i2c_client *client = &e_ctrl->i2c_client;
+    client->addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+    client->cci_client->sid = e_ctrl->eboard_info->i2c_slaveaddr >> 1;
+    rc = client->i2c_func_tbl->i2c_read(
+        client, e_ctrl->eboard_info->sensorid_addr, 
+        &chipid, MSM_CAMERA_I2C_WORD_DATA);
+    if (rc < 0) {
+        pr_err("%s: %s: read failed\n", __func__, e_ctrl->eboard_info->eeprom_name);
+        return rc;
+    }
+
+    pr_err("%s chipid = 0x%x,sensorid = 0x%x\n", __func__, chipid, e_ctrl->eboard_info->sensorid);
+    if (chipid == e_ctrl->eboard_info->sensorid) {
+        return 1;
+    }
+
+    return 0;
+}
+#endif
+
 static int msm_eeprom_match_id(struct msm_eeprom_ctrl_t *e_ctrl)
 {
 	int rc;
@@ -1487,6 +1524,9 @@ static int eeprom_config_read_cal_data32(struct msm_eeprom_ctrl_t *e_ctrl,
 	struct msm_eeprom_cfg_data32 *cdata32 =
 		(struct msm_eeprom_cfg_data32 *) arg;
 	struct msm_eeprom_cfg_data cdata;
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	char *qtech_imx219="qtech_imx219";
+#endif
 
 	cdata.cfgtype = cdata32->cfgtype;
 	cdata.is_supported = cdata32->is_supported;
@@ -1506,7 +1546,12 @@ static int eeprom_config_read_cal_data32(struct msm_eeprom_ctrl_t *e_ctrl,
 
 	rc = copy_to_user(ptr_dest, e_ctrl->cal_data.mapdata,
 		cdata.cfg.read_data.num_bytes);
-
+#ifdef CONFIG_MACH_LENOVO_TBX704
+        if(!strncmp(e_ctrl->eboard_info->eeprom_name,qtech_imx219,strlen(qtech_imx219)))
+        {
+             module_id=ptr_dest[1];
+        }
+#endif
 	return rc;
 }
 
@@ -1875,6 +1920,35 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 			pr_err("failed rc %d\n", rc);
 			goto memdata_free;
 		}
+#ifdef CONFIG_MACH_LENOVO_TBX704
+                rc = of_property_read_u32(of_node, "qcom,sensor-id",
+                                          &temp);
+                if (rc < 0) {
+                    pr_err("%s failed rc %d,no sensor id\n", __func__, rc);
+                    eb_info->sensorid = 0;
+                } else {
+                    eb_info->sensorid = temp;
+                }
+
+                rc = of_property_read_u32(of_node, "qcom,sensor-id-addr",
+                          &temp);
+                if (rc < 0) {
+                    pr_err("%s failed rc %d,no sensor id\n", __func__, rc);
+                    eb_info->sensorid_addr = 0;
+                } else {
+                    eb_info->sensorid_addr = temp;
+                }
+
+                pr_err("%s sensorid = 0x%x\n", __func__, e_ctrl->eboard_info->sensorid);
+
+                if (e_ctrl->eboard_info->sensorid != 0) {
+                    if (msm_eeprom_i2c_match_id(e_ctrl) != 1) {
+                        pr_err("%s msm_eeprom_i2c_match_id failed,sensorid = 0x%x\n", __func__, e_ctrl->eboard_info->sensorid);
+                        rc = -EINVAL;
+                        goto power_down;
+                    }
+                }
+#endif
 		rc = read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
 		if (rc < 0) {
 			pr_err("%s read_eeprom_memory failed\n", __func__);

@@ -252,6 +252,10 @@ struct msm_eeprom_cmm_t {
 struct msm_eeprom_board_info {
 	const char *eeprom_name;
 	uint16_t i2c_slaveaddr;
+#ifdef CONFIG_MACH_LENOVO_TBX704
+	uint16_t sensorid_addr;
+	uint16_t sensorid;
+#endif
 	struct msm_camera_power_ctrl_t power_info;
 	struct msm_eeprom_cmm_t cmm_data;
 	enum i2c_freq_mode_t i2c_freq_mode;
