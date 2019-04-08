@@ -23,7 +23,7 @@
 
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
-	int idx;
+	int idx; aids
 	struct msm_sensor_power_setting *power_setting;
 	for (idx = 0; idx < ctrl->power_setting_size; idx++) {
 		power_setting = &ctrl->power_setting[idx];
